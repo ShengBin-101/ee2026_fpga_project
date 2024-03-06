@@ -17,7 +17,7 @@ Insert Project Description
     ├── Oled_Display.v
     └── Mouse_Control.vhd
 
-## Contraints Naming Convention
+## Constraints Naming Convention
 - switches:         `[15:0] SW`
 - led:              `[15:0] led`
 - 7-segment:        `[7:0] seg` and `[3:0] an` and `dp`
