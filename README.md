@@ -17,6 +17,15 @@ Insert Project Description
     ├── Oled_Display.v
     └── Mouse_Control.vhd
 
+## Contraints Naming Convention
+- switches:         `[15:0] SW`
+- led:              `[15:0] led`
+- 7-segment:        `[7:0] seg` and `[3:0] an` and `dp`
+- push buttons:     `btnC`, `btnU`, `btnL`, `btnR`, `btnD`
+- system clock:     `basys_clk`
+- USB HID:          `PS2Clk`, `PS2Data`
+
+
 ## Feature List
 | Features | Description | Inputs |
 | :---: | --- | --- |
