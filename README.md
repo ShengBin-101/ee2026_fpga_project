@@ -10,6 +10,13 @@ Insert Project Description
 - Basic Task C (Jiaquan)
 - Basic Task D (Sheng Bin)
 
+## Structure
+
+    Top_Student.v
+    ├── flexible_clock_module.v
+    ├── Oled_Display.v
+    └── Mouse_Control.vhd
+
 ## Feature List
 | Features | Description | Inputs |
 | :---: | --- | --- |
