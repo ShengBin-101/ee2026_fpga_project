@@ -1,8 +1,12 @@
-# EE2026_FPGA_Project (in-lab)
+# EE2026_FPGA_Project (in-lab portion, before basic tasks)
 This project is part of National University of Singapore's EE2026 Digital Design, using Verilog HDL to program a FPGA (Digilent Basys3)
 
 > [!IMPORTANT]
 > This branch contains archived project for in-lab deliverables (Basic Tasks are not included in this branch).
+
+Source files are found in 
+    
+    /MODS/MODS.srcs/sources_1/new
 
 ## Contents of Repo
 Contents in Archived Project
