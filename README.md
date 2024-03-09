@@ -1,18 +1,31 @@
-# EE2026_FPGA_Project
+# EE2026_FPGA_Project (basic task d)
 This project is part of National University of Singapore's EE2026 Digital Design, using Verilog HDL to program a FPGA (Digilent Basys3)
 
-## Project Description
-Insert Project Description
+> [!IMPORTANT]
+> This branch contains archived project for basic task D.
+
+Source files are found in 
+    
+    /MODS/MODS.srcs/sources_1/new
 
 ## Contents of Repo
-- Basic Task A (Kenneth)
-- Basic Task B (Jun Chen)
-- Basic Task C (Jiaquan)
-- Basic Task D (Sheng Bin)
+Contents in Archived Project
+
+- Top_Student.v (top-most module)
+- taskd.v (whole basic task D in one module)
+
+> [!IMPORTANT]
+> Set project_lab.v as top module if you want to generate bitstream for project_lab.
+
 
 ## Structure
-
+    constants.vh (header file containing constants)
     Top_Student.v
+    ├── flexible_clock_module.v
+    ├── oled.v
+    └── task_d.v
+        └── index_to_xy.v
+    project_lab.v
     ├── flexible_clock_module.v
     ├── Oled_Display.v
     └── Mouse_Control.vhd
