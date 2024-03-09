@@ -14,10 +14,6 @@ Contents in Archived Project
 - Top_Student.v (top-most module)
 - taskd.v (whole basic task D in one module)
 
-> [!IMPORTANT]
-> Set project_lab.v as top module if you want to generate bitstream for project_lab.
-
-
 ## Structure
     constants.vh (header file containing constants)
     Top_Student.v
