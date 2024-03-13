@@ -50,12 +50,12 @@ module Top_Student (
         .pmoden(JC[7]));
     
     // ====== Instantiate module for each basic task (COLOURS are placeholders for unimplemented tasks) 
-        wire [15:0] oled_data_a = `PURPLE;
+        wire [15:0] oled_data_a;
         wire [15:0] oled_data_b = `BEIGE;
         wire [15:0] oled_data_c;
         wire [15:0] oled_data_d; 
         wire [15:0] oled_data_group;
-//        task_a task_a_module();
+        Task_A task_a_module(.clk_6p25m(clk_6p25m), .btnC(btnC), .pixel_index(pixel_index), .oled_data(oled_data_a), .btnD(btnD));
 //        task_b task_b_module();
         task_c task_c_module(.bassys_clock(basys_clk), .btnD(btnD),  .index(pixel_index), .SW(SW[5:1]), .oled_data(oled_data_c));        
         task_d task_d_module(.basys_clk(basys_clk), .SW_reset(SW[5:1]),.SW0(SW[0]), .btnC(btnC), .btnL(btnL), .btnR(btnR), .btnU(btnU), .pixel_index(pixel_index) , .oled_data(oled_data_d));
