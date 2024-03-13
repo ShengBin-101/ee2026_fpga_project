@@ -35,7 +35,7 @@ module Top_Student (
         
     Oled_Display oled(
         .clk(clk_6p25m), 
-        .reset(btnD), 
+        .reset(0), 
         .frame_begin(frame_begin), 
         .sending_pixels(sending_pixels),
         .sample_pixel(sample_pixel), 
@@ -52,13 +52,13 @@ module Top_Student (
     // ====== Instantiate module for each basic task (COLOURS are placeholders for unimplemented tasks) 
         wire [15:0] oled_data_a = `PURPLE;
         wire [15:0] oled_data_b = `BEIGE;
-        wire [15:0] oled_data_c = `CYAN;
+        wire [15:0] oled_data_c;
         wire [15:0] oled_data_d; 
         wire [15:0] oled_data_group;
 //        task_a task_a_module();
 //        task_b task_b_module();
-//        task_c task_c_module();        
-        task_d task_d_module(.basys_clk(basys_clk), .SW0(SW[0]), .btnC(btnC), .btnL(btnL), .btnR(btnR), .btnU(btnU), .btnD(btnD), .pixel_index(pixel_index) , .oled_data(oled_data_d));
+        task_c task_c_module(.bassys_clock(basys_clk), .btnD(btnD),  .index(pixel_index), .SW(SW[5:1]), .oled_data(oled_data_c));        
+        task_d task_d_module(.basys_clk(basys_clk), .SW_reset(SW[5:1]),.SW0(SW[0]), .btnC(btnC), .btnL(btnL), .btnR(btnR), .btnU(btnU), .pixel_index(pixel_index) , .oled_data(oled_data_d));
         task_e task_e_module(.basys_clk(basys_clk), .SW(SW), .btnC(btnC), .PS2Clk(PS2Clk), .PS2Data(PS2Data), .JC(JC), .led(led), .seg(seg), .an(an), .dp(dp), .oled_data(oled_data_group));
 
 

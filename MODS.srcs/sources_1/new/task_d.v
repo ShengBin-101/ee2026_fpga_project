@@ -20,24 +20,25 @@
 //////////////////////////////////////////////////////////////////////////////////
 `include "constants.vh"
 
-// HAVEN'T IMPLEMENT RESET FOR TASK E YET
-
 module task_d(
     input basys_clk,
-    input SW0,
-    input btnC, // set signal to set start to 1
-    input btnL, // left movement
-    input btnU, // up movement
-    input btnR, // right movement
-    input btnD, // rst signal for button controls
+    input [4:0] SW_reset,   // Switches to check if task_d is selected
+    input SW0,              // Switch to vary box speed
+    input btnC,             // set signal to set start to 1
+    input btnL,             // left movement
+    input btnU,             // up movement
+    input btnR,             // right movement
     input [12:0] pixel_index,
     output [15:0] oled_data
     );
     
-    wire clk_45;    // 45 Hz
-    wire clk_30;    // 30 Hz
-    wire clk_15;    // 15 Hz
+    // =========== Clocks ==================
+    wire clk_1000;   //1000 Hz Clock Signal to update button, updates every 1 millisecond
+    wire clk_45;    // 45 Hz, for box speed
+    wire clk_30;    // 30 Hz, for box speed
+    wire clk_15;    // 15 Hz, for box speed
     
+    flexible_clock_module clk_1000_module(basys_clk, 49999 ,clk_1000);
     flexible_clock_module clk_45_module(basys_clk, 1111110 ,clk_45);
     flexible_clock_module clk_30_module(basys_clk, 1666666 ,clk_30);
     flexible_clock_module clk_15_module(basys_clk, 3333332 ,clk_15);
@@ -45,40 +46,52 @@ module task_d(
     wire speed_clk; // 45 or 30 or 15 Hz Clock Signal depending on SW0 and movement
     speed_select (SW0, clk_45, clk_30, clk_15, move, speed_clk);
     
-//    wire clk_25m;   //25M Hz Clock Signal to update button
-//    flexible_clock_module clk_25m_module(basys_clk, 1 ,clk_25m);
+    // ======== Active/Reset Logic =============
+    wire active;    // active == 1 means we have selected task d to run, active == 0 means 
+    reset_logic reset_logic_module(.clock(basys_clk), .SW_reset(SW_reset), .active(active));
     
-    wire clk_1000;   //1000 Hz Clock Signal to update button, updates every 1 millisecond
-    flexible_clock_module clk_1000_module(basys_clk, 49999 ,clk_1000);
-    // square_top_bound     = y axis of top edge
-    // square_bottom_bound  = y axis of bottom edge
-    // square_left_bound    = x axis of left edge
-    // square_right_bound   = x axis of right edge
-    wire [6:0] square_top_bound, square_bottom_bound, square_left_bound, square_right_bound; 
-    
-    wire start, center;
+    // ======== Update State and Movement of Box =========
+    wire start, center; // Start determines if box is blue or white, center determines if box is centered or moving
     wire [1:0] move;    
+    // 2'b00 = don't care,
     // 2'b01 = left movement,  
     // 2'b11 = right movement,  
     // 2'b10 = up movement, 
     
-    button_controls (.clock(clk_1000), .btnC(btnC), .btnU(btnU), .btnL(btnL), .btnR(btnR), .rst(btnD), .start(start), .center(center), .move(move));
+    button_controls (.clock(clk_1000), .btnC(btnC), .btnU(btnU), .btnL(btnL), .btnR(btnR), .active(active), .start(start), .center(center), .move(move));
     square_controls (speed_clk, start, center, move, square_top_bound, square_bottom_bound, square_left_bound, square_right_bound);
 
+    // ========== Draw Pixels ===================
     // x = x-coordinate of current pixel
     // y = y-coordinate of current pixel
+    // square_top_bound     = y axis of top edge
+    // square_bottom_bound  = y axis of bottom edge
+    // square_left_bound    = x axis of left edge
+    // square_right_bound   = x axis of right edge
     wire [7:0] x;
     wire [6:0] y;
+    wire [6:0] square_top_bound, square_bottom_bound, square_left_bound, square_right_bound; 
     
-    index_to_xy convert_module(pixel_index, x, y); // module to update x and y based on current pixel_index
+    // module to update x and y based on current pixel_index
+    index_to_xy convert_module(pixel_index, x, y); 
     
-    // wire [15:0] oled_;
     // outputs updated pixel value for current pixel
     draw_box(start, x, y, `BLUE, `WHITE, `BLACK, square_top_bound, square_bottom_bound, square_left_bound, square_right_bound, oled_data);
 
 endmodule
 
-    // multiplexer to select clk signal for box movement speed
+module reset_logic(input clock, input [4:0] SW_reset, output reg active);
+    always @ (posedge clock) begin
+        if ((SW_reset[4:0] >= 5'b01000) && (SW_reset[4:0] < 5'b10000)) begin
+            active <= 1;
+        end
+        else begin
+            active <= 0;
+        end   
+    end
+endmodule
+
+// multiplexer to select clk signal for box movement speed
 module speed_select (input SW0, clk_45, clk_30, clk_15, [1:0] move, output reg speed_clk);
     always @ (SW0) begin
         if (SW0 == 0) begin
@@ -95,31 +108,28 @@ endmodule
 
 // **************
 // button_controls module updates state based on buttons pressed
+// start is a flag to indicate blue/white box (0 for blue, 1 for white)
 module button_controls (
-    input clock, btnC, btnU, btnL, btnR, rst,
+    input clock, btnC, btnU, btnL, btnR, active,
     output reg start, reg center, reg [1:0] move
     );
     // TODO: Debounce???
+    // if task_d selected using switches, active flag will be turned on
     
-    always @ (posedge clock, posedge rst) begin
-        if (rst == 1) begin
-            start <= 0;
-            center <= 0;
-        end 
-        else if (start == 0) begin
-            // if user havent pressed btnC, listen for btnC, once btnC pressed, set start and center to 1
-            start <= (btnC == 1) ? 1 : start;
-            center <= (btnC == 1) ? 1 : center;
-        end
-        else begin
-            // start == 1, update move based on btnX that is pressed 
-            center <= (btnC == 1) ? 1 : (btnL == 1 || btnR == 1 | btnU == 1) ? 0 : center;
-            move <= (btnC == 1) ? 0 : (btnU == 1) ? 2'b10 : (btnL == 1) ? 2'b01 : (btnR == 1) ? 2'b11 : move;
-        end
+    always @ (posedge clock) begin
+            if (active == 1 && start == 0) begin
+                start <= (btnC == 1) ? 1 : start;
+                center <= (btnC == 1) ? 1 : center;
+            end
+            else if (active == 1 && start == 1) begin
+                center <= (btnC == 1) ? 1 : (btnL == 1 || btnR == 1 | btnU == 1) ? 0 : center;
+                move <= (btnC == 1) ? 0 : (btnU == 1) ? 2'b10 : (btnL == 1) ? 2'b01 : (btnR == 1) ? 2'b11 : move;
+            end
+            else if (active == 0) begin
+                start <= 0;
+                center <= 0;
+            end
     end
-    
-    
-    
 endmodule
 
 // **************
