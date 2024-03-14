@@ -17,7 +17,8 @@ output [7:0] JC,
 
 //task A2
 input btnC,
-input btnD
+input btnD,
+input [5:1] sw
 );
 
     wire clk_6p25m;
@@ -49,6 +50,6 @@ input btnD
     .vccen(JC[6]),
     .pmoden(JC[7]));
     
-    Task_A task_a(.clk_6p25m(clk_6p25m), .btnC(btnC), .pixel_index(pixel_index), .oled_data(oled_data), .btnD(btnD));
+    Task_A task_a(.clk_6p25m(clk_6p25m), .btnC(btnC), .pixel_index(pixel_index), .oled_data(oled_data), .btnD(btnD), .sw(sw[5:1]));
 
 endmodule
