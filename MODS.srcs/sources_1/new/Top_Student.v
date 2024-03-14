@@ -55,11 +55,17 @@ module Top_Student (
         wire [15:0] oled_data_c;
         wire [15:0] oled_data_d; 
         wire [15:0] oled_data_group;
+        
+        wire [6:0] seg_e;
+        wire [4:0] an_e;
+        wire dp_e;
         Task_A task_a_module(.clk_6p25m(clk_6p25m), .btnC(btnC), .pixel_index(pixel_index), .oled_data(oled_data_a), .btnD(btnD));
 //        task_b task_b_module();
         task_c task_c_module(.bassys_clock(basys_clk), .btnD(btnD),  .index(pixel_index), .SW(SW[5:1]), .oled_data(oled_data_c));        
         task_d task_d_module(.basys_clk(basys_clk), .SW_reset(SW[5:1]),.SW0(SW[0]), .btnC(btnC), .btnL(btnL), .btnR(btnR), .btnU(btnU), .pixel_index(pixel_index) , .oled_data(oled_data_d));
-        task_e task_e_module(.basys_clk(basys_clk), .SW(SW), .btnC(btnC), .PS2Clk(PS2Clk), .PS2Data(PS2Data), .JC(JC), .led(led), .seg(seg), .an(an), .dp(dp), .oled_data(oled_data_group));
+        task_e task_e_module(.basys_clk(basys_clk), .SW(SW), .btnC(btnC), .PS2Clk(PS2Clk), .PS2Data(PS2Data), .JC(JC), .led(led), .seg(seg_e), .an(an_e), .dp(dp_e), .oled_data(oled_data_group), .pixel_index(pixel_index));
+   
+   
 
 
     // ====== Instantiate MUX to select which task to perform =======
@@ -67,8 +73,11 @@ module Top_Student (
         .basys_clk(basys_clk), 
         .SW(SW), 
         .led(led),
+        .seg_e(seg_e),
         .seg(seg),
+        .an_e(an_e),
         .an(an),
+        .dp_e(dp_e),
         .dp(dp),
         .oled_data_a(oled_data_a),
         .oled_data_b(oled_data_b),
@@ -85,8 +94,11 @@ module basic_task_mux(
     input basys_clk, 
     input [15:0] SW, 
     output reg [15:0] led,
+    input [6:0] seg_e,
     output reg [6:0] seg,
+    input [3:0] an_e,
     output reg [3:0] an,
+    input dp_e,
     output reg dp,
     input [15:0] oled_data_a,
     input [15:0] oled_data_b,
@@ -114,9 +126,9 @@ module basic_task_mux(
         // SELECT GROUP TASK
         if (SW[5] == 1) begin
             led <= 16'b10000;
-            seg <= 7'b0000000;
-            an <= 4'b0000;
-            dp <= 1;
+            seg <= seg_e;
+            an <= an_e;
+            dp <= dp_e;
             oled_data <= oled_data_group;
         end
         // SELECT TASK D
