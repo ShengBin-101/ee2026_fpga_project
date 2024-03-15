@@ -101,12 +101,25 @@ module task_e(
    reg [15:0] correct = 15'h 0000; 
    
     assign oled_data = (success) ? correct : colour_chooser ;
+    
    
     reg [31:0] timer = 249999;
     reg [31:0] counter = 0;             
     reg [1:0] state = 0; 
     reg pressed = 0;
-     
+   
+   
+    reg [31:0] timer1 = 99999999;
+    reg [31:0] counter1 = 0;
+    reg [2:0] color_state = 0;
+    
+    reg [15:0] color_E1 = 0; // Color state for the first E
+    reg [15:0] color_E2 = 0; // Color state for the second E
+    reg [15:0] color_2 = 0;  // Color state for the first 2
+    reg [15:0] color_0 = 0;  // Color state for 0
+    reg [15:0] color_2_2 = 0;// Color state for the second 2
+    reg [15:0] color_6 = 0;  // Color state for 6
+    
    always @ (posedge basys_clk) begin
    
    if (!SW[5]) begin
@@ -120,11 +133,72 @@ module task_e(
    else begin
    
    counter <= counter + 1;
+   counter1 <= counter1 + 1;
+   
    
    if (counter >= timer) begin
    counter <= 0;
    state <= state + 1;
    end
+   
+    if (counter1 >= timer1) begin
+     counter1 <= 0;
+     color_state <= color_state + 1;
+     if (color_state >= 5)
+     color_state <= 0;
+     end
+     
+     case (color_state)
+             0: begin
+              color_E1 <= 16'hF800; // Red
+              color_E2 <= 16'h07E0; // Green
+              color_2 <= 16'h001F;  // Blue
+              color_0 <= 16'b 10111_001100_11111; // Purple
+              color_2_2 <= 16'b 11111_100110_00000; //Orange
+              color_6 <= 16'b 10101_110111_11011; //Turqoise
+             end
+             1 : begin 
+              color_6 <= 16'hF800; // Red
+              color_E1 <= 16'h07E0; // Green
+              color_E2 <= 16'h001F;  // Blue
+              color_2 <= 16'b 10111_001100_11111; // Purple
+              color_0 <= 16'b 11111_100110_00000; //Orange
+              color_2_2 <= 16'b 10101_110111_11011; //Turqoise
+            end
+              2 : begin 
+               color_2_2 <= 16'hF800; // Red
+               color_6 <= 16'h07E0; // Green
+               color_E1 <= 16'h001F;  // Blue
+               color_E2 <= 16'b 10111_001100_11111; // Purple
+               color_2 <= 16'b 11111_100110_00000; //Orange
+               color_0 <= 16'b 10101_110111_11011; //Turqoise
+               end
+             3 : begin
+             color_0 <= 16'hF800; // Red
+             color_2_2 <= 16'h07E0; // Green
+             color_6 <= 16'h001F;  // Blue
+             color_E1 <= 16'b 10111_001100_11111; // Purple
+             color_E2 <= 16'b 11111_100110_00000; //Orange
+             color_2 <= 16'b 10101_110111_11011; //Turqoise
+             end
+            4 : begin
+             color_2 <= 16'hF800; // Red
+             color_0 <= 16'h07E0; // Green
+             color_2_2 <= 16'h001F;  // Blue
+             color_6 <= 16'b 10111_001100_11111; // Purple
+             color_E1 <= 16'b 11111_100110_00000; //Orange
+             color_E2 <= 16'b 10101_110111_11011; //Turqoise
+             end
+            5 : begin
+              color_E2 <= 16'hF800; // Red
+              color_2 <= 16'h07E0; // Green
+              color_0 <= 16'h001F;  // Blue
+              color_2_2 <= 16'b 10111_001100_11111; // Purple
+              color_6 <= 16'b 11111_100110_00000; //Orange
+              color_E1 <= 16'b 10101_110111_11011; //Turqoise 
+              end
+         endcase
+   
    
     if (state == 2) begin
      an_4 <= 4'b 1011;
@@ -169,7 +243,7 @@ module task_e(
    ((Y >= 25) && (Y <= 27) && (X >= 4) && (X <= 13)) ||
    ((Y >= 34) && (Y <= 36) && (X >= 4) && (X <= 13)) ||
    ((Y >= 42) && (Y <= 44) && (X >= 4) && (X <= 13))) begin
-   correct <= 16'h f800;
+   correct <= color_E1;
    end
    
    //E
@@ -177,7 +251,7 @@ module task_e(
      ((Y >= 25) && (Y <= 27) && (X >= 21) && (X <= 30)) ||
      ((Y >= 34) && (Y <= 36) && (X >= 21) && (X <= 30)) ||
      ((Y >= 42) && (Y <= 44) && (X >= 21) && (X <= 30))) begin
-     correct <= 16'h 07e0 ;
+     correct <= color_E2 ;
      end
             
             //2
@@ -186,7 +260,7 @@ module task_e(
             ((X >= 35) && (X <= 45) && (Y >= 35) && (Y <= 37)) ||
             ((X >= 35) && (X <= 37) && (Y >= 38) && (Y <= 44)) || 
             ((X >= 38) && (X <= 45) && (Y >= 42) && (Y <= 44))) begin
-            correct <= 16'h 001f;
+            correct <= color_2;
             end
             
             //0
@@ -194,7 +268,7 @@ module task_e(
                      ((X >= 60) && (X <= 62) && (Y >= 25) && (Y <= 44)) ||  // Right vertical line
                      ((Y >= 25) && (Y <= 27) && (X >= 52) && (X <= 59)) ||  // Top horizontal line
                      ((Y >= 42) && (Y <= 44) && (X >= 52) && (X <= 59))) begin  // Bottom horizontal line
-                correct <= 16'b 11111_100110_00000;
+                correct <= color_0;
             end
             
             // 2
@@ -203,7 +277,7 @@ module task_e(
                      ((Y >= 35) && (Y <= 37) && (X >= 67) && (X <= 77)) ||  // Middle horizontal line
                      ((Y >= 38) && (Y <= 44) && (X >= 67) && (X <= 69)) ||  // Bottom horizontal line
                      ((X >= 67) && (X <= 77) && (Y >= 42) && (Y <= 44))) begin  // Bottom vertical line
-                correct <= 16'b 10111_001100_11111;
+                correct <= color_2_2;
             end
             
             // "6"
@@ -212,7 +286,7 @@ module task_e(
                      ((Y >= 25) && (Y <= 27) && (X >= 85) && (X <= 94)) ||  // Top horizontal line
                      ((Y >= 34) && (Y <= 36) && (X >= 85) && (X <= 94)) ||  // Middle horizontal line
                      ((Y >= 42) && (Y <= 44) && (X >= 85) && (X <= 94))) begin  // Bottom horizontal line
-                correct <= 16'b 10101_110111_11011;
+                correct <= color_6;
             end
             else begin
             correct <= 16'h 0000;
