@@ -16,7 +16,7 @@ module Top_Student (input sw, input CLOCK, input btnR, input btnL, input btnC, o
 flexible_clock obj4 (CLOCK, m, clk_6p25); //dot means module declaration do not need to be in order
 //oLED instantiation
 wire clk_6p25;
-reg[15:0] oled_data = 16'd 0;
+wire[15:0] oled_data;
 wire[7:0] coordinate_x;
 wire[7:0] coordinate_y;
 wire fb;
@@ -25,7 +25,7 @@ wire sample_pixel;
 wire [12:0] pixel_index;
 wire timeReached;
 wire timeOut;
-reg [31:0] counter = 0;
+wire [31:0] counter = 0;
 assign JB[2] = 0;
 
 //oled_data ;
@@ -37,24 +37,26 @@ Oled_Display oled_display_A(.clk(clk_6p25), .reset(0), .frame_begin(fb), .sendin
   
   fourSec obj2 (sw, CLOCK, timeReached);
   
-  reg B3 = 0;
-  reg [2:0]pb = 3'b 100;
-  reg [2:0]pb2 = 0;
-  reg left = 0;
-  reg right = 0;
-  reg centre = 0;
+  task_b obj3(clk_6p25, coordinate_x, coordinate_y, timeReached, btnL, btnR, btnC, oled_data);
+   
+//  reg B3 = 0;
+//  reg [2:0]pb = 3'b 100;
+//  reg [2:0]pb2 = 0;
+//  reg left = 0;
+//  reg right = 0;
+//  reg centre = 0;
  
  
- always @(posedge clk_6p25) 
+ //always @(posedge clk_6p25) 
  /* README (Week 7: 4.B1 and 4.B2)
  1. clock must be of 6.25MHz to run oLED
  2. Coordinate y refers to vertical axis of oLED. Each pixel is 1 coordinate.
  3. Coordinate X refers to horizontal axis of oLED
  4. coordinate_y > a && coordinate_y < b, means one vertical line from a to b is drawn 
  */
-    begin
+ //   begin
     // For 4.B1 (Start)
-    if(!timeReached && (
+/*    if(!timeReached && (
            ((coordinate_y >= 23 && coordinate_y <= 40) &&  
            ((coordinate_x >= 51 && coordinate_x <= 53) || (coordinate_x >= 39 && coordinate_x <= 41)))  ||
            ((coordinate_x >= 41 && coordinate_x <= 53) &&  
@@ -213,6 +215,7 @@ Oled_Display oled_display_A(.clk(clk_6p25), .reset(0), .frame_begin(fb), .sendin
                      else if (B3 == 1)
                         oled_data <= 16'b 00000_000000_00000;
         end
+        */
     
     // For 4.B2 (End)
 endmodule
