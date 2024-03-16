@@ -74,7 +74,7 @@ module task_e(
     wire reset;
     reg success = 0;
     assign reset = (success)? 1 : 
-                   (!SW[5]) ? 1 :
+                   (!SW[5] || (SW[15:14] < 2'b 01)) ? 1 :
                    right;
         
     
@@ -82,7 +82,7 @@ module task_e(
             .slow_clk(clk_2),
                .mouse_l(left), 
                .reset (reset),
-               .enable(SW[6]),  
+               .enable((SW[15] || SW[14])),  
                .mouse_x(xpos),
                .mouse_y(ypos),
                .pixel_index(pixel_index),
@@ -100,7 +100,9 @@ module task_e(
    reg [6:0] seg_AN_1 = 7'b 1111001;
    reg [15:0] correct = 15'h 0000; 
    
-    assign oled_data = (success) ? correct : colour_chooser ;
+    assign oled_data = (success) ? correct : 
+                       (SW[15] ||SW[14]) ? colour_chooser :
+                       16'h ffff;    
     
    
     reg [31:0] timer = 249999;
