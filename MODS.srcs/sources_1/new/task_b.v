@@ -20,8 +20,8 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module task_b(input clk_6p25, input [7:0] coordinate_x, input [7:0] coordinate_y, input timeReached,  
-input btnL, input btnR, input btnC, output reg[15:0] oled_data = 16'd 0);
+module task_b(input clk_6p25, input [12:0] pixel_index, input CLOCK,
+input btnL, input btnR, input btnC, input sw, output reg[15:0] oled_data = 16'd 0);
 
 
   reg B3 = 0;
@@ -31,9 +31,30 @@ input btnL, input btnR, input btnC, output reg[15:0] oled_data = 16'd 0);
   reg right = 0;
   reg centre = 0;
   reg [31:0] counter = 0;
-    
-    
-    
+  wire[7:0] coordinate_x;
+  wire[7:0] coordinate_y;
+  reg timeReached;
+  
+  //conversion (from module conversion)
+  assign coordinate_y = pixel_index / 96;
+  assign coordinate_x = pixel_index - (coordinate_y * 96);
+  
+  reg [31:0]count = 0;
+  
+  //conversion (from module fourSec)
+  always @(posedge CLOCK) begin
+  if (sw == 1) begin
+      count = (count < 299999999) ? count + 1 : count;
+      if(count == 299999999)
+        timeReached <= 1;
+      end
+  else
+      begin
+      timeReached <= 0;
+      count = 0;
+      end
+  end
+
     always @(posedge clk_6p25) 
      /* README (Week 7: 4.B1 and 4.B2)
      1. clock must be of 6.25MHz to run oLED
@@ -202,4 +223,10 @@ input btnL, input btnR, input btnC, output reg[15:0] oled_data = 16'd 0);
                          else if (B3 == 1)
                             oled_data <= 16'b 00000_000000_00000;
             end
+endmodule
+
+module conversion (input [12:0] pixel_index, output [7:0] coordinate_x, output [7:0] coordinate_y);
+assign coordinate_y = pixel_index / 96;
+assign coordinate_x = pixel_index - (coordinate_y * 96);
+
 endmodule
