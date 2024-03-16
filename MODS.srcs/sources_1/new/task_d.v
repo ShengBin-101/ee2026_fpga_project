@@ -44,7 +44,7 @@ module task_d(
     flexible_clock_module clk_15_module(basys_clk, 3333332 ,clk_15);
     
     wire speed_clk; // 45 or 30 or 15 Hz Clock Signal depending on SW0 and movement
-    speed_select (SW0, clk_45, clk_30, clk_15, move, speed_clk);
+    speed_select speed_select_module(basys_clk, SW0, clk_45, clk_30, clk_15, move, speed_clk);
     
     // ======== Active/Reset Logic =============
     wire active;    // active == 1 means we have selected task d to run, active == 0 means 
@@ -58,8 +58,8 @@ module task_d(
     // 2'b11 = right movement,  
     // 2'b10 = up movement, 
     
-    button_controls (.clock(clk_1000), .btnC(btnC), .btnU(btnU), .btnL(btnL), .btnR(btnR), .active(active), .start(start), .center(center), .move(move));
-    square_controls (speed_clk, start, center, move, square_top_bound, square_bottom_bound, square_left_bound, square_right_bound);
+    button_controls button_control_module(.clock(clk_1000), .btnC(btnC), .btnU(btnU), .btnL(btnL), .btnR(btnR), .active(active), .start(start), .center(center), .move(move));
+    square_controls square_control_module(speed_clk, start, center, move, square_top_bound, square_bottom_bound, square_left_bound, square_right_bound);
 
     // ========== Draw Pixels ===================
     // x = x-coordinate of current pixel
@@ -76,7 +76,7 @@ module task_d(
     index_to_xy convert_module(pixel_index, x, y); 
     
     // outputs updated pixel value for current pixel
-    draw_box(start, x, y, `BLUE, `WHITE, `BLACK, square_top_bound, square_bottom_bound, square_left_bound, square_right_bound, oled_data);
+    draw_box draw_box_module(start, x, y, `BLUE, `WHITE, `BLACK, square_top_bound, square_bottom_bound, square_left_bound, square_right_bound, oled_data);
 
 endmodule
 
@@ -92,8 +92,8 @@ module reset_logic(input clock, input [4:0] SW_reset, output reg active);
 endmodule
 
 // multiplexer to select clk signal for box movement speed
-module speed_select (input SW0, clk_45, clk_30, clk_15, [1:0] move, output reg speed_clk);
-    always @ (SW0) begin
+module speed_select (input basys_clk, SW0, clk_45, clk_30, clk_15, [1:0] move, output reg speed_clk);
+    always @ (posedge basys_clk) begin
         if (SW0 == 0) begin
             speed_clk <= clk_45;
         end

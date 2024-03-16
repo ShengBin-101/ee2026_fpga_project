@@ -24,7 +24,7 @@ module project_lab(
     input basys_clk,
     input btnU, btnL, btnR, btnD, btnC, 
     input [15:0] SW,
-    output [7:0] JB, 
+    output [7:0] JC, 
     output [15:0] led,
     output [6:0] seg,
     output [3:0] an,
@@ -49,13 +49,13 @@ module project_lab(
             .sample_pixel(sample_pixel), 
             .pixel_index(pixel_index), 
             .pixel_data(colour_chooser), 
-            .cs(JB[0]), 
-            .sdin(JB[1]), 
-            .sclk(JB[3]), 
-            .d_cn(JB[4]), 
-            .resn(JB[5]), 
-            .vccen(JB[6]),
-            .pmoden(JB[7]));
+            .cs(JC[0]), 
+            .sdin(JC[1]), 
+            .sclk(JC[3]), 
+            .d_cn(JC[4]), 
+            .resn(JC[5]), 
+            .vccen(JC[6]),
+            .pmoden(JC[7]));
     
     
     

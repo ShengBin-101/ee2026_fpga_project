@@ -26,7 +26,8 @@ input clk_6p25m,
 input btnC,
 input btnD,
 input [12:0] pixel_index,
-output reg [15:0] oled_data
+output reg [15:0] oled_data,
+input [5:1] sw
 
 );
 
@@ -44,6 +45,7 @@ reg [4:0] stage = 0;
 reg [4:0] stage_part_b = 0;
 reg [13:0] milisec_counter = 0;
 reg [21:0] two_hun_milisec_counter = 0;
+reg [2:0] reset = 0;
 
 
 always @ (posedge clk_6p25m) 
@@ -188,14 +190,41 @@ begin
            oled_data <= 16'h FC00;
        end
        
-       else if (stage_part_b == 3 && ((x >= 38) && (x < 58) && (y >= 25) && (y < 40) && (y < (-3/2)*x + 97) && (y < (3/2)*x - 17))) //green triangle
+       else if (stage_part_b == 3 && ((x >= 36 && x <= 60) && (y >= 30 && y <= 54) && ((y - 30) < (x - 36)) && ((y - 30) < (60 - x)))) //green triangle
        begin
            oled_data <= 16'h 07E0;
        end
-
+       
 
    end 
-       
+   
+   if (sw[1] && !sw[2] && !sw[3] && !sw[4] && !sw[5])
+   begin
+       if (reset == 0)
+       begin
+           reset <= 1;
+       end
+   end
+   
+   if (reset == 1)
+   begin
+       btnCpressed <= 0;
+       two_sec_counter <= 0;
+       onePfive_sec_counter <= 0;
+       one_sec_counter <= 0;
+       stage <= 0;
+       stage_part_b <= 0;
+       milisec_counter <= 0;
+       two_hun_milisec_counter <= 0;
+       reset <= 2;
+   end  
+   else if (reset <= 2)
+   begin
+       if (!(sw[1] && !sw[2] && !sw[3] && !sw[4] && !sw[5]))
+       begin
+           reset <= 0;
+       end
+   end
 
            
 end

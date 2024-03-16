@@ -51,7 +51,7 @@ module Top_Student (
     
     // ====== Instantiate module for each basic task (COLOURS are placeholders for unimplemented tasks) 
         wire [15:0] oled_data_a;
-        wire [15:0] oled_data_b = `BEIGE;
+        wire [15:0] oled_data_b;
         wire [15:0] oled_data_c;
         wire [15:0] oled_data_d; 
         wire [15:0] oled_data_group;
@@ -59,8 +59,8 @@ module Top_Student (
         wire [6:0] seg_e;
         wire [4:0] an_e;
         wire dp_e;
-        Task_A task_a_module(.clk_6p25m(clk_6p25m), .btnC(btnC), .pixel_index(pixel_index), .oled_data(oled_data_a), .btnD(btnD));
-//        task_b task_b_module();
+        Task_A task_a_module(.clk_6p25m(clk_6p25m), .btnC(btnC), .pixel_index(pixel_index), .oled_data(oled_data_a), .btnD(btnD), .sw(SW[5:1]));
+        task_b task_b_module(.clk_6p25(clk_6p25m), .pixel_index(pixel_index), .CLOCK(basys_clk), .btnL(btnL), .btnR(btnR), .btnC(btnC), .sw(SW[0]), .oled_data(oled_data_b));
         task_c task_c_module(.bassys_clock(basys_clk), .btnD(btnD),  .index(pixel_index), .SW(SW[5:1]), .oled_data(oled_data_c));        
         task_d task_d_module(.basys_clk(basys_clk), .SW_reset(SW[5:1]),.SW0(SW[0]), .btnC(btnC), .btnL(btnL), .btnR(btnR), .btnU(btnU), .pixel_index(pixel_index) , .oled_data(oled_data_d));
         task_e task_e_module(.basys_clk(basys_clk), .SW(SW), .btnC(btnC), .PS2Clk(PS2Clk), .PS2Data(PS2Data), .JC(JC), .led(led), .seg(seg_e), .an(an_e), .dp(dp_e), .oled_data(oled_data_group), .pixel_index(pixel_index));
