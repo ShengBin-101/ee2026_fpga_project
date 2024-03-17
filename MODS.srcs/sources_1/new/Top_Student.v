@@ -12,7 +12,7 @@
 
 
 module Top_Student (input sw, input CLOCK, input btnR, input btnL, input btnC, output [7:0] JB);
-flexible_clock obj4 (CLOCK, m, clk_6p25); //dot means module declaration do not need to be in order
+flexible_clock obj4 (CLOCK, 7, clk_6p25); //dot means module declaration do not need to be in order
 wire clk_6p25;
 wire[15:0] oled_data;
 wire[7:0] coordinate_x;

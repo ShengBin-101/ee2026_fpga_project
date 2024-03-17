@@ -34,6 +34,7 @@ input btnL, input btnR, input btnC, input sw, output reg[15:0] oled_data = 16'd 
   wire[7:0] coordinate_x;
   wire[7:0] coordinate_y;
   reg timeReached;
+  reg releasedBtn = 1;
   
   //conversion (from module conversion)
   assign coordinate_y = pixel_index / 96;
@@ -108,24 +109,37 @@ input btnL, input btnR, input btnC, input sw, output reg[15:0] oled_data = 16'd 
           end
           if(timeReached && (btnR || btnL || btnC))  B3 <= 1;
           
+          if(!btnL && !btnR && !btnC) releasedBtn <= 1;
+          
           if(btnL) begin
             counter <= 0;
             left <= 0;
-            if(counter >= 9999999) left <= 1;
-            else counter <= counter + 1;
+                if(counter >= 924999 && releasedBtn) begin 
+                left <= 1;
+                releasedBtn <= 0;
+                end
+           else counter <= counter + 1;
           end  
             
             else if(btnR) begin
               counter <= 0;
               right <= 0;
-              if(counter >= 9999999) right <= 1;
+              if(counter >= 924999 && releasedBtn) begin 
+              right <= 1;
+              releasedBtn <= 0;
+              end
               else counter <= counter + 1;
             end  
             
              else if(btnC) begin
              counter <= 0;
              centre <= 0;
-             if(counter >= 9999999) centre <= 1;
+             
+             if(counter >= 924999 && releasedBtn) begin
+             centre <= 1;
+             releasedBtn <= 0;
+             end
+             
              else counter <= counter + 1;
            end  
             
