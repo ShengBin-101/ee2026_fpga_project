@@ -109,7 +109,7 @@ module task_e(
     reg [31:0] counter = 0;             
     reg [1:0] state = 0; 
     reg pressed = 0;
-   
+    reg prev_pressed = 0;
    
     reg [31:0] timer1 = 99999999;
     reg [31:0] counter1 = 0;
@@ -212,17 +212,17 @@ module task_e(
      seg_7 <= 7'b 0010010;
      dp_1 <= 1;
      end 
+ 
+  prev_pressed <= btnC;
   
-  
-  
-  if (btnC && !pressed)
+  if (!btnC && prev_pressed)
   pressed <= 1;
   
-  if (((seg_AN_0 != 7'b 0100100) || (seg_AN_1 != 7'b 1111001)) && pressed == 1) begin
+  if (((seg_AN_0 != 7'b 0100100) || (seg_AN_1 != 7'b 1111001)) && pressed) begin
   pressed <= 0;
   end
   
-  if (pressed == 1 && (seg_AN_0 == 7'b 0100100) && (seg_AN_1 == 7'b 1111001)) begin 
+  if (pressed && (seg_AN_0 == 7'b 0100100) && (seg_AN_1 == 7'b 1111001)) begin 
   success <= 1;
   end
   

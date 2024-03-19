@@ -32,6 +32,8 @@ module task_c(input bassys_clock, input btnD, input [12:0] index, input [4:0] SW
   reg [6:0] X_moved = 0;
   reg [5:0] Y_moved = 0;
   reg pressed = 0;
+  reg Start = 0;
+  reg prev_pressed;
   reg [31:0] counter = 0;
   reg [31:0] counter1 = 0;
   reg [31:0] counter2 = 0;
@@ -61,8 +63,8 @@ module task_c(input bassys_clock, input btnD, input [12:0] index, input [4:0] SW
   Double <= 0;
   end
   
-  
-  if (pressed == 0) begin
+  if (!pressed) begin
+  Start <= 0;
   Green <= 0;
   Right <= 0;
   Return <= 0;
@@ -75,15 +77,20 @@ module task_c(input bassys_clock, input btnD, input [12:0] index, input [4:0] SW
   counter5 <= 0;
   end
   
-  if (btnD == 1 && pressed != 1 && Stop == 0) begin
-  pressed <= 1;
-  counter <= 0;
+ prev_pressed <= btnD;
+  
+ if (prev_pressed && !btnD)
+ pressed <= 1;
+
+  
+  if (pressed && !Stop && !Start) begin
+  Start <= 1;
   end
   
-  if (pressed == 1)
+  if (Start)
   counter <= counter + 1;
   
-  if (pressed == 1 && Y_moved < 30 && counter >= 4999999 && !Right) begin
+  if (Start && Y_moved < 30 && counter >= 4999999 && !Right) begin
         square_Y <= square_Y + 1;
         Y_moved <= Y_moved + 1;
         counter <= 0;

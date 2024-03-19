@@ -44,7 +44,7 @@ input btnL, input btnR, input btnC, input [4:0] reset_sw,input sw0, output reg[1
   
   //conversion (from module fourSec)
   always @(posedge CLOCK) begin
-  if (sw0 == 1 && (reset_sw <= 0'b0011)) begin
+  if (sw0 == 1 && ((reset_sw == 5'b 00010) || (reset_sw == 5'b 00011))) begin
       count = (count < 399999999) ? count + 1 : count;
       if(count == 399999999)
         timeReached <= 1;
