@@ -42,11 +42,11 @@ input btnR
     
 
    //bomb_enter_left enter_left(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
-  // bomb_enter_right enter_right(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
-    bomb_leave_left leave_left(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+   //bomb_enter_right enter_right(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+   // bomb_leave_left leave_left(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
    // bomb_leave_right leave_right(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
- //  bomb_explode center(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
-   
-  //bomb_enter_right_exploding(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+  //bomb_explode explode(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+ // bomb_at_center center(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+
 
 endmodule

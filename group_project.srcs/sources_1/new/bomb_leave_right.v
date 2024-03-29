@@ -21,7 +21,7 @@ reg [27:0] circle_move_counter = 0;
 
 //rectangle properties
 parameter rect_width = 8;
-parameter rect_height = 5;
+parameter rect_height = 8;
 reg [15:0] rect_x = 46; // Starting position of the rectangle on the x-axis centre
 reg [15:0] rect_y = 14; // Starting position of the rectangle on the y-axis centre
 reg [27:0] rectangle_move_counter = 0;
@@ -52,6 +52,14 @@ parameter fire_growth_rate = 50000; // Speed of fire growth and shrinkage
 reg [27:0] fire_counter = 0;
 reg fire_growing = 1; // Indicates whether the fire is growing or shrinking
 
+//bomb expanding and contracting
+parameter bomb_radius_min = 14; // Minimum radius of the bomb for contraction
+parameter bomb_radius_max = 18; // Maximum radius of the bomb for expansion
+parameter bomb_animation_rate = 1562500; // Speed of bomb expansion and contraction
+reg [15:0] dynamic_circle_radius = bomb_radius_min; // Dynamic radius of the circle
+reg bomb_expanding = 1; // Flag to track whether the bomb is expanding or contracting
+reg [27:0] bomb_animation_counter = 0; // Counter for bomb animation timing
+
 
 
 always @(posedge clk_6p25m) begin
@@ -69,10 +77,39 @@ always @(posedge clk_6p25m) begin
             circle_x <= circle_x + 1; // Move the circle right by 1 pixel each clock cycle
         end
     end
-    // Check if current pixel is within the circle's area
-    if ((x - circle_x)**2 + (y - circle_y)**2 <= circle_radius**2) 
+    
+    //circle 
+    bomb_animation_counter <= bomb_animation_counter + 1;
+    if (bomb_animation_counter >= bomb_animation_rate) 
     begin
-        oled_data <= 16'h0000; // Color the pixel black if within the circle
+        bomb_animation_counter <= 0; // Reset the counter for the next step
+        if (bomb_expanding) 
+        begin
+            if (dynamic_circle_radius < bomb_radius_max) 
+            begin
+                dynamic_circle_radius <= dynamic_circle_radius + 1;
+            end 
+            else 
+            begin
+                bomb_expanding <= 0; // Start contracting
+            end
+        end 
+        else //contracting bomb
+        begin
+            if (dynamic_circle_radius > bomb_radius_min) 
+            begin
+                dynamic_circle_radius <= dynamic_circle_radius - 1;
+            end 
+            else 
+            begin
+                bomb_expanding <= 1; // Start expanding
+            end
+        end
+    end
+
+    // Drawing the bomb with dynamic radius
+    if ((x - circle_x)**2 + (y - circle_y)**2 <= dynamic_circle_radius**2) begin
+        oled_data <= 16'h0000; // Color the pixel black if within the dynamic circle radius
     end
     
     

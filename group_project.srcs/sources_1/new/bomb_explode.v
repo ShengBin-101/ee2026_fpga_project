@@ -2,7 +2,7 @@
 
 
 
-module bomb_at_center(
+module bomb_explode(
     input clk_6p25m,
     input [12:0] pixel_index,
     output reg [15:0] oled_data
@@ -19,7 +19,7 @@ reg [27:0] circle_move_counter = 0;
 
 //rectangle properties
 parameter rect_width = 8;
-parameter rect_height = 8;
+parameter rect_height = 5;
 reg [15:0] rect_x = 46; // Starting position of the rectangle on the x-axis centre
 reg [15:0] rect_y = 14; // Starting position of the rectangle on the y-axis centre
 reg [27:0] rectangle_move_counter = 0;
@@ -61,54 +61,30 @@ parameter fire_growth_rate = 50000; // Speed of fire growth and shrinkage
 reg [27:0] fire_counter = 0;
 reg fire_growing = 1; // Indicates whether the fire is growing or shrinking
 
-//bomb expanding and contracting
-parameter bomb_radius_min = 14; // Minimum radius of the bomb for contraction
-parameter bomb_radius_max = 18; // Maximum radius of the bomb for expansion
-parameter bomb_animation_rate = 1562500; // Speed of bomb expansion and contraction
-reg [15:0] dynamic_circle_radius = bomb_radius_min; // Dynamic radius of the circle
-reg bomb_expanding = 1; // Flag to track whether the bomb is expanding or contracting
-reg [27:0] bomb_animation_counter = 0; // Counter for bomb animation timing
-
-
 always @(posedge clk_6p25m) begin
     // Default to white background
     oled_data <= 16'hFFFF;
+    
+    
+    // decrease length of fuse and make fire follow the fuse
+    fire_x <= 46 + dynamic_fuse_1_length;
+    counter = counter + 1;
+    if (counter >= 150000)
+    begin
+        if (dynamic_fuse_1_length > 0)
+        begin
+            counter <= 0;
+            dynamic_fuse_1_length <= dynamic_fuse_1_length - 1;
+        end
+    end
         
         
     //circle 
-    bomb_animation_counter <= bomb_animation_counter + 1;
-    if (bomb_animation_counter >= bomb_animation_rate) 
+    if ((x - circle_x)**2 + (y - circle_y)**2 <= circle_radius**2) 
     begin
-        bomb_animation_counter <= 0; // Reset the counter for the next step
-        if (bomb_expanding) 
-        begin
-            if (dynamic_circle_radius < bomb_radius_max) 
-            begin
-                dynamic_circle_radius <= dynamic_circle_radius + 1;
-            end 
-            else 
-            begin
-                bomb_expanding <= 0; // Start contracting
-            end
-        end 
-        else //contracting bomb
-        begin
-            if (dynamic_circle_radius > bomb_radius_min) 
-            begin
-                dynamic_circle_radius <= dynamic_circle_radius - 1;
-            end 
-            else 
-            begin
-                bomb_expanding <= 1; // Start expanding
-            end
-        end
+        oled_data <= 16'h0000; // Color the pixel black if within the circle
     end
-
-    // Drawing the bomb with dynamic radius
-    if ((x - circle_x)**2 + (y - circle_y)**2 <= dynamic_circle_radius**2) begin
-        oled_data <= 16'h0000; // Color the pixel black if within the dynamic circle radius
-    end
-
+    
     
     
     //rectangle 
@@ -138,6 +114,30 @@ always @(posedge clk_6p25m) begin
         oled_data <= 16'hFC00; // orange
     end   
     
+    
+
+    // Start explosion once the fuse is fully burnt
+    if (dynamic_fuse_1_length == 0 && !explosion_active) begin
+        explosion_active <= 1;
+        explosion_radius <= 0; // Reset explosion radius for animation
+    end
+    // Animate explosion
+    if (explosion_active) begin
+        explosion_counter <= explosion_counter + 1;
+        if (explosion_counter >= explosion_rate) begin
+            explosion_counter <= 0;
+            if (explosion_radius < explosion_max_radius) begin
+                explosion_radius <= explosion_radius + 1; // Increase radius to expand explosion
+            end else begin
+                explosion_active <= 0; // End the explosion animation
+                explosion_radius <= 0; // Reset the radius for potential future explosions
+            end
+        end
+    end
+    // Draw explosion
+    if (explosion_active && (x - circle_x)**2 + (y - circle_y)**2 <= explosion_radius**2) begin
+        oled_data <= 16'hFC00; // Orange color for the explosion
+    end
     
     // Pulsating fire logic
     fire_counter <= fire_counter + 1;
