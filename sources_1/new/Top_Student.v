@@ -26,10 +26,18 @@ module Top_Student (
     output TX_to_B,         // Connection between Master (Board A) and (Board B)
     input RX_from_C,        // Connection between Master (Board A) and (Board C)
     output TX_to_C,         // Connection between Master (Board A) and (Board C)
-    output reg B_left=0,           // detect left press from B
-    output reg B_right=0,          // detect right press from B
-    output reg C_left=0,           // detect left press from C
-    output reg C_right=0           // detect right press from C
+    input B_start_round_from_m,
+    output reg start_round_to_B,
+    input left_press_from_B,
+    input right_press_from_B,
+    output reg B_left_press_to_m,
+    output reg B_right_press_to_m,
+    input C_start_round_from_m,
+    output reg start_round_to_C,
+    input left_press_from_C,
+    input right_press_from_C,
+    output reg C_left_press_to_m,
+    output reg C_right_press_to_m
 );
 
     assign JC[2] = 0; // Some boards require JC[2] to be cleared to 0 for OLED to work
@@ -117,12 +125,17 @@ module Top_Student (
     // state = 11: Potato Spawn + Countdown Timer tick
     // state = 100: Bomb Explode, Game Over Screen
     // go back to game state (10)
-    wire [1:0] possession;
+    reg [1:0] possession_reg;
+    wire [1:0] possession_wire;
+    
+//    assign possession_wire = possession_reg;
     // possession: 00 - Master Board possess bomb
     // possession: 01 - Left Board possess bomb
     // possession: 10 - Right Board possess bomb
     // possession: 11 - Game Starting Countdown or Game End
-    wire exploded; 
+    reg exploded_reg; 
+    wire exploded_wire;
+    assign exploded_wire = exploded_reg;
     // exploded: 0 for havent explode, 
     // explored: 1 for exploded
     wire [1:0] board_type;
@@ -173,12 +186,12 @@ module Top_Student (
                     PS2Clk, 
                     PS2Data);
     
-    // Potato Timer (Board A)
     
     // takes in a trigger signal to kickstart a randomised countdown timer
     wire [4:0] countdown;
-    
-    random_countdown_timer(.clk(basys_clk),.trigger(SW[7]),.count(countdown),.gameover(exploded));
+    wire [4:0] countdown_start_value;
+    reg start_bomb;
+    random_countdown_timer(.clk(basys_clk),.trigger(start_bomb),.count(countdown), .countdown_start_value(countdown_start_value));
     
     // TODO: Create a module that constructs write_data
     reg [13:0] password_from_B;
@@ -186,18 +199,67 @@ module Top_Student (
     // module that controls writing/reading of data to UART
     reg B_ready;
     reg C_ready;
+
+    reg [1:0] bomb_animation_state_A;
+    reg [1:0] bomb_animation_state_B;    
+    reg [1:0] bomb_animation_state_C;
     
-    reg transition;
-    reg counter;
+    reg [1:0] tick_speed;
     
-   initial begin
+    reg start_game;
+    reg init_round;
+    reg init_round_done_reg;
+    wire init_round_done_wire;
+    assign init_round_done_wire = init_round_done_reg;
+    reg start_passing;
+    reg round_end;
+    reg game_end;
+    reg reset_game;
+    reg reset_round;
+    wire exploded;
+    assign exploded = (countdown == 0);
+    
+    wire one_sec_over;
+    one_sec_countdown one_sec_countdown_module(basys_clk, init_round, reset_round, one_sec_over);
+    wire two_sec_over;
+    two_sec_countdown two_sec_countdown_module(basys_clk, round_end, reset_round, two_sec_over);
+    
+    wire three_sec_over;
+    three_sec_countdown three_sec_countdown_module(basys_clk, one_sec_over, reset_round, three_sec_over);
+    init_round init_round_module(basys_clk, init_round, init_round_done_wire, possession_wire);
+    
+    initial begin
        password_set = 0;
        game_state = 0;
-   end
+        reset_game = 1;
+    end
+   
+   wire left_pressed_A;
+   wire right_pressed_A;
+   wire left_pressed_B;
+   wire right_pressed_B;
+   wire left_pressed_C;
+   wire right_pressed_C;
+   // PRESS DETECTION + COOLDOWN/DEBOUNCING
+   press_detection press_detection_module(basys_clk, init_round_done_reg, 
+                                            btnL, 
+                                            btnR,
+                                            left_press_from_B,
+                                            right_press_from_B,
+                                            left_press_from_C,
+                                            right_press_from_C,
+                                            left_pressed_A,
+                                            right_pressed_A,
+                                            left_pressed_B,
+                                            right_pressed_B,
+                                            left_pressed_C,
+                                            right_pressed_C
+                                            );
+   
+    
+    
     
     always @(posedge basys_clk) begin
-
-        
         // update send packet for master
         if (board_type == 1) begin
             if (game_state == 0) begin
@@ -219,13 +281,185 @@ module Top_Student (
                     write_data_to_C[15] <= 1;
                 end
             end
+            // ====================GAME MASTER===============================
             else if (game_state == 1) begin
                 send_signal <= clk_6p25m; 
-                write_data_to_B[4:0] <= countdown;
-                write_data_to_B[14:5] <= 0;
-                write_data_to_C[4:0] <= countdown;
-                write_data_to_C[14:5] <= 0;
+                init_round <= 1;
+
+                // COUNTDOWN FOR 3 Seconds
+                if (init_round) begin
+                    // decide random starting player
+                    if (reset_game == 1) begin
+                        reset_game <= 0;
+                       lives_A <= 3;
+                        lives_B <= 3;
+                        lives_C <= 3;
+                    end
+                    game_end <= 0;
+                    exploded_reg <= 0;
+                    
+                    // Update Data Packet
+                    if (possession_wire == 0) begin
+                        bomb_animation_state_A <= 2'b11;
+                        bomb_animation_state_B <= 2'b00;
+                        bomb_animation_state_C <= 2'b00;
+                    end                    
+                    else if (possession_wire == 1) begin
+                        bomb_animation_state_A <= 2'b00;
+                        bomb_animation_state_B <= 2'b11;
+                        bomb_animation_state_C <= 2'b00;
+                    end                    
+                    else if (possession_wire == 2) begin
+                        bomb_animation_state_A <= 2'b00;
+                        bomb_animation_state_B <= 2'b00;
+                        bomb_animation_state_C <= 2'b11;
+                    end
+                    
+                    // Update Send Data 
+                    write_data_to_B[4:0] <= countdown;
+                    write_data_to_B[6:5] <= bomb_animation_state_B;
+                    write_data_to_B[8:7] <= tick_speed;
+                    write_data_to_B[10:9] <= lives_B;
+                    write_data_to_B[12:11] <= possession_wire;
+                    write_data_to_B[13] <= exploded_reg;
+                    write_data_to_B[14] <= game_end;
+                    write_data_to_B[15] <= 1;
+                    
+                    // Update Send Data 
+                    write_data_to_C[4:0] <= countdown;
+                    write_data_to_C[6:5] <= bomb_animation_state_C;
+                    write_data_to_C[8:7] <= tick_speed;
+                    write_data_to_C[10:9] <= lives_C;
+                    write_data_to_C[12:11] <= possession_wire;
+                    write_data_to_C[13] <= exploded_reg;
+                    write_data_to_C[14] <= game_end;
+                    write_data_to_C[15] <= 1;                    
+                  
+                    if (one_sec_over == 1) begin
+                        // update port to tell slave boards to start 3sec countdown
+                        start_round_to_B <= 1;
+                        start_round_to_C <= 1;
+                        start_bomb <= 0;
+                        possession_reg <= possession_wire;
+                    end
+                    
+                    if (three_sec_over == 1) begin 
+                        init_round_done_reg <= 1;
+                        // Trigger Random Timer for bomb
+                        start_bomb <= 1;
+                    end
+                end
+                if (init_round_done_reg) begin
+                    // Start Passing Phase 
+                    // This phase updates bomb_animation_state for each board
+                    // This phase updates which board possesses bomb based on button presses
+                    // Button press flags have timers to include 1s "cooldowns" so users cannot spam buttons
+                    
+                    // Pushbutton event from A (itself)
+                   if (possession_reg == 2'b01) begin
+                        // bomb with A
+                        // detect for left or right pushbutton press
+                        if (left_pressed_A) begin
+                            possession_reg <= 2'b10;
+                            write_data_to_B[6:5] <= 2'b10; // enter from right
+                        end
+                        if (right_pressed_A) begin
+                            possession_reg <= 2'b11;
+                            write_data_to_C[6:5] <= 2'b01; // enter from left
+                        end
+                   end
+                  // Pushbutton event from B
+                  if (possession_reg == 2'b10) begin
+                       // bomb with B
+                       // detect for left or right pushbutton press
+                       if (left_pressed_B) begin
+                           possession_reg <= 2'b11;
+                           write_data_to_C[6:5] <= 2'b10;
+                       end
+                       if (right_pressed_B) begin
+                           possession_reg <= 2'b01;
+                           bomb_animation_state_A <= 2'b01;
+                           write_data_to_B[6:5] <= 2'b00;
+                       end
+                  end
+                  // Pushbutton event from C
+                 if (possession_wire == 2'b11) begin
+                      // bomb with C
+                      // detect for left or right pushbutton press
+                      if (left_pressed_C) begin
+                          possession_reg <= 2'b01;
+                          bomb_animation_state_A <= 2'b10;
+                      end
+                      if (right_pressed_C) begin
+                          possession_reg <= 2'b10;
+                          write_data_to_B[6:5] <= 2'b01;
+                          write_data_to_C[6:5] <= 2'b00;
+                      end
+                 end                   
+                 
+                 
+                   
+                   if (countdown == 0) begin
+                        round_end <= 1;
+                   end
+                end 
+                if (round_end) begin
+                
+                    // end of round, bomb has exploded
+                    // check possession and update lives
+                    if (possession_reg == 2'b01) begin
+                        lives_A = lives_A - 1;
+                    end
+                    else if (possession_reg == 2'b10) begin
+                        lives_B = lives_B - 1;
+                    end                    
+                    else if (possession_reg == 2'b11) begin
+                        lives_C = lives_C - 1;
+                    end                    
+                    
+                    if (  (lives_A != 0 && lives_B == 0 && lives_C == 0) ||
+                          (lives_A == 0 && lives_B != 0 && lives_C == 0) ||
+                          (lives_A == 0 && lives_B == 0 && lives_C != 0)   ) begin
+                       // only one player standing
+                       //update game_end
+                       game_end = 1;
+                          
+                    end
+                    write_data_to_B[12:11] <= possession_reg;
+                    write_data_to_B[10:9] <= lives_B;
+                    write_data_to_B[13] <= 1;   // update explosion
+                    write_data_to_C[12:11] <= possession_reg;
+                    write_data_to_C[10:9] <= lives_C;
+                    write_data_to_C[13] <= 1;   // update explosion
+                    
+                    // update datapacket
+                
+                    if (game_end) begin
+                        write_data_to_B[14] <= 1;
+                        write_data_to_C[14] <= 1;
+                        // wait for btnC to be pressed to restart game
+                        if (btnC) begin
+                            reset_game <= 1;
+                            init_round <= 0;
+                            init_round_done_reg <= 0;
+                            round_end <= 0;
+                            start_bomb <= 0;
+                        end
+                    end
+                    else if (two_sec_over == 1) begin
+                        // restart round after 2 seconds
+                        reset_round <= 1;
+                        init_round <= 0;
+                        init_round_done_reg <= 0;
+                        round_end <= 0;
+                        start_bomb <= 0;
+                    end
+                
+                end
+//                write_data_to_B[4:0] <= countdown;
+//                write_data_to_C[4:0] <= countdown;
             end
+            // ====================GAME MASTER===============================
         end
         
         // display led, segment, oled based on master and slave
@@ -236,12 +470,19 @@ module Top_Student (
                 seg <= seg_password;
                 an <= an_password;
             end
+            // ====================GAME MASTER (DISPLAY)===============================
             else if (game_state == 1) begin
-                seg <= 6'b111111;
-                an <= 4'b1111;
-                led[13:0] <= countdown;
-                oled_data <= (countdown == 0) ? `RED : `GREEN;
+                // display lives_A on 7-segment
+                led[4:0] <= countdown;
+                led[8:5] = lives_A;
+                oled_data <= (init_round == 1) ? `PURPLE :          // init
+                (lives_A == 0) ? `RED  :             // GAMEOVER
+                (possession_reg == 2'b01 && countdown != 0) ? `ORANGE :       // Match INPROGRESS holding bomb
+                (possession_reg != 2'b01 && countdown != 0) ? `BLUE :  // Match INPROGRESS not holding bomb
+                (possession_reg == 2'b01 && countdown == 0) ? `YELLOW: // EXPLOSION
+                `GREEN;                                           // SAFE
             end
+            // =====================GAME MASTER (DISPLAY)==============================
         end
         else if (board_type == 2) begin
         // board is not master            
@@ -256,7 +497,7 @@ module Top_Student (
                 // play sound for successful check
                 if (rec_data_from_B[15] == 1)
                 begin
-                        // play sound
+                        // play sound for successful password
                         game_state <= 1;
                 end
                 else begin
@@ -264,13 +505,35 @@ module Top_Student (
                 seg <= seg_password;
                 an <= an_password;
             end
+            // =====================GAME SLAVE==============================
             else if (game_state == 1) begin
                 read_signal <= clk_6p25m;
-                seg <= 6'b111111;
-                an <= 4'b1111;
+                if (B_start_round_from_m) begin
+                    // start 3 seconds countdown animation
+                
+                end
+                if (btnL == 1)  
+                    B_left_press_to_m <= 1 ;
+                else if (btnL == 0)
+                    B_left_press_to_m <= 0;
+                if (btnR == 1)  
+                    B_right_press_to_m <= 1 ;
+                else if (btnR == 0)
+                    B_right_press_to_m <= 0;
+                    
+                // check possession and animation_state and play correct animation
+                led[8:5] = lives_B;
+                // display lives_B (rec_data_from_B[10:9]) on 7-segment
                 led[4:0] <= rec_data_from_B[4:0];
-                oled_data <= (rec_data_from_B[4:0] == 0) ? `RED : `GREEN;
+                oled_data <= (init_round == 1) ? `PURPLE :          // init
+                (rec_data_from_B[10:9] == 0) ? `RED  :             // GAMEOVER
+                (rec_data_from_B[12:11] == 2'b10 && rec_data_from_B[13] == 0) ? `ORANGE :       // Match INPROGRESS holding bomb
+                (rec_data_from_B[12:11] != 2'b10 && rec_data_from_B[13] == 0) ? `BLUE :  // Match INPROGRESS not holding bomb
+                (rec_data_from_B[12:11] == 2'b10 && rec_data_from_B[13] == 1) ? `YELLOW: // EXPLOSION
+                `GREEN;                                           // SAFE
+                            
             end
+            // =====================GAME SLAVE==============================
         end
         else if (board_type == 3) begin
         // board is not master            
@@ -293,224 +556,166 @@ module Top_Student (
                 seg <= seg_password;
                 an <= an_password;
             end
+            // =====================GAME SLAVE==============================
             else if (game_state == 1) begin
                 read_signal <= clk_6p25m;
-                seg <= 6'b111111;
-                an <= 4'b1111;
-                led[4:0] <= rec_data_from_C[4:0];
-                oled_data <= (rec_data_from_C[4:0] == 0) ? `RED : `GREEN;
-            end
-        end
-
-    end    
-endmodule
-
-// module password_phase allows the board to change password value of the board itself
-module password_phase(
-            input game_state,
-            input basys_clk, 
-            input clk_200, 
-            input clk_1,
-            input btnL, btnR, btnU, btnD, btnC,
-            input [1:0] board_type,
-            input [12:0] pixel_index,
-            output [3:0] an_output,
-            output [6:0] seg_output,
-            output [13:0] selected_password,
-            output [15:0] oled_data_password,
-            inout PS2Clk, PS2Data);
-        // State 1: Password Setting by Master Board
-                  
-        // Password is 4 digits XXXX
-        // digit3,digit2,digit1,digit0
-        reg [13:0] master_password;     // can represent from 0000 - 9999, for slave boards to check
-        
-        wire [3:0] digit0;
-        wire [3:0] digit1;
-        wire [3:0] digit2;
-        wire [3:0] digit3;
-        wire [1:0] selected_digit;
-
-        // selected_digit: 00 - digit0 selected
-        // selected_digit: 01 - digit1 selected
-        // selected_digit: 10 - digit2 selected
-        // selected_digit: 11 - digit3 selected
-        
-        // Mouse Module
-        wire [11:0] xpos, ypos;
-        wire [3:0] zpos;
-        wire left, middle, right, new_event;
-        reg [11:0] value = 0;
-        reg setx = 0;
-        reg sety = 0;
-        reg setmax_x = `WIDTH;
-        reg setmax_y = `HEIGHT;
-        
-        wire clk_25m;   // 25   MHZ CLK Signal
-        wire clk_12p5m; // 12.5 MHZ CLK Signal
-        wire clk_2;     // 2     HZ CLK Signal  (slow_clk)
-        wire clk_6p25m;
-        flexible_clock_module clk_6p25m_module(basys_clk, 7 ,clk_6p25m);
-        flexible_clock_module clk_25m_module(basys_clk, 1 ,clk_25m);
-        flexible_clock_module clk_12p5m_module(basys_clk, 3 ,clk_12p5m);
-        flexible_clock_module clk_2_module(basys_clk, 24999999 ,clk_2);
-        
-        MouseCtl mouse_module(.clk(basys_clk), .rst(0), .xpos(xpos), .ypos(ypos), .zpos(zpos), 
-                                   .left(left), .middle(middle), .right(right), .new_event(new_event), 
-                                   .value(value), .setx(setx), .sety(sety), .setmax_x(setmax_x), .setmax_y(setmax_y), 
-                                   .ps2_clk(PS2Clk), .ps2_data(PS2Data) );
-            
-        password_select password_select_module(.clk_100M(basys_clk),
-                           .mouse_l(left), 
-                           .reset(0),
-                           .enable(game_state==0),  
-                           .mouse_x(xpos),
-                           .mouse_y(ypos),
-                           .pixel_index(pixel_index),
-                           .oled_data(oled_data_password),
-                           .digit_1(digit0),
-                           .digit_2(digit1),
-                           .digit_3(digit2),
-                           .digit_4(digit3),
-                           .btnL(btnL),
-                           .btnR(btnR),
-                           .btnU(btnU),
-                           .btnD(btnD),
-                           .selected_digit(selected_digit)                                    
-                           );
-        
-        
-        
-        
-        
-        // module to map 4 bit binary number to 7-segment character
-        
-        
-        segment_counter segment_counter_module(basys_clk, clk_200, clk_1, digit0, digit1, digit2, digit3, selected_digit, an_output, seg_output);
-
-        assign selected_password = (digit0 * 1) + (digit1 * 10) + (digit2 * 100) + (digit3 * 1000);
-        
-        
-        // CHECK WITH MASTER PASSWORD
-        
-endmodule
-
-module binary_to_7seg(
-    input [3:0] binary_input,
-    output reg [6:0] seg_output
-);
-
-// 7-segment display patterns for numbers 0-9
-// Each bit represents a segment (a-g), with 1 indicating segment ON and 0 indicating OFF
-// Segments are labeled as follows:   a
-//                                   -----
-//                                f |     | b
-//                                  |  g  |
-//                                   -----
-//                                e |     | c
-//                                  |     |
-//                                   -----
-//                                     d
-
-always @(*) begin
-    case (binary_input)
-        4'b0000: seg_output = 7'b1000000; // 0
-        4'b0001: seg_output = 7'b1111001; // 1
-        4'b0010: seg_output = 7'b0100100; // 2
-        4'b0011: seg_output = 7'b0110000; // 3
-        4'b0100: seg_output = 7'b0011001; // 4
-        4'b0101: seg_output = 7'b0010010; // 5
-        4'b0110: seg_output = 7'b0000010; // 6
-        4'b0111: seg_output = 7'b1111000; // 7
-        4'b1000: seg_output = 7'b0000000; // 8
-        4'b1001: seg_output = 7'b0010000; // 9
-        default: seg_output = 7'b1111111; // Blank (for invalid input)
-    endcase
-end
-
-endmodule
-
-// this module creates a counter that allows us to display password digits on 7-segment display
-module segment_counter(input basys_clk, input clk_200, input clk_2,
-    input [3:0] digit0, 
-    input [3:0] digit1,
-    input [3:0] digit2,
-    input [3:0] digit3, 
-    input [1:0] selected_digit,
-    output reg [3:0] an_output, 
-    output reg [6:0] seg_output);
-    
-    wire [6:0] seg_digit0;
-    wire [6:0] seg_digit1;
-    wire [6:0] seg_digit2;
-    wire [6:0] seg_digit3;
-    
-    binary_to_7seg (digit0, seg_digit0);
-    binary_to_7seg (digit1, seg_digit1);
-    binary_to_7seg (digit2, seg_digit2);
-    binary_to_7seg (digit3, seg_digit3);
-            
-    reg [1:0] count;    
-    // counter to step through anodes of 7-segment
-    always @ (posedge clk_200)
-        begin
-            if (count < 4)
-                count <= count + 1;
-            else
-                count = 0;
-        end
-    // create counter
-
-    
-    always @ (posedge basys_clk)
-        begin
-        case (count)
-               2'b00: begin an_output[3:0] <= 4'b1110; 
-                    if (selected_digit == 0 && clk_2 == 0) begin
+                if (C_start_round_from_m) begin
+                    // start 3 seconds countdown animation
                     
-                        seg_output[6:0] <= 6'b111111;
-                    end
-                    else
-                        seg_output[6:0] <= seg_digit0; 
-                    end
-               2'b01: 
-                    begin an_output[3:0] <= 4'b1101;
-                    if (selected_digit == 1 && clk_2 == 0) begin
-                        seg_output[6:0] <= 6'b111111;
-                    end
-                    else 
-                        seg_output[6:0] <= seg_digit1; 
-                    end
-               2'b10: begin an_output[3:0] <= 4'b1011; 
-                   if (selected_digit == 2 && clk_2 == 0) begin
-                       seg_output[6:0] <= 6'b111111;
-                   end
-                   else 
-                       seg_output[6:0] <= seg_digit2; 
-                   end
-               2'b11: begin an_output[3:0] <= 4'b0111; 
-                   if (selected_digit == 3 && clk_2 == 0) begin
-                        seg_output[6:0] <= 6'b111111;
-                   end
-                   else 
-                       seg_output[6:0] <= seg_digit3; 
-                   end
-        endcase
+                end
+                
+                if (btnL == 1)  
+                    C_left_press_to_m <= 1 ;
+                else if (btnL == 0)
+                    C_left_press_to_m <= 0;
+                if (btnR == 1)  
+                    C_right_press_to_m <= 1 ;
+                else if (btnR == 0)
+                    C_right_press_to_m <= 0;
+
+                // display lives_C (rec_data_from_C[10:9]) on 7-segment
+                led[8:5] = lives_C;
+                led[4:0] <= rec_data_from_C[4:0];
+                oled_data <= (init_round == 1) ? `PURPLE :          // init
+                (rec_data_from_C[10:9] == 0) ? `RED  :             // GAMEOVER
+                (rec_data_from_C[12:11] == 2'b11 && rec_data_from_C[13] == 0) ? `ORANGE :       // Match INPROGRESS holding bomb
+                (rec_data_from_C[12:11] != 2'b11 && rec_data_from_C[13] == 0) ? `BLUE :  // Match INPROGRESS not holding bomb
+                (rec_data_from_C[12:11] == 2'b11 && rec_data_from_C[13] == 1) ? `YELLOW: // EXPLOSION
+                `GREEN;                                           // SAFE
+            end
+            // =====================GAME SLAVE==============================
+        end
+            
     end
 endmodule
 
-module master_select(input basys_clk, 
-                    input SW15, SW14, SW13, 
-                    output reg [1:0] board_type);
+module three_sec_countdown(input basys_clk, input trigger_signal, input reset, output reg three_sec_passed);
+    reg [31:0] count=0;
     always @ (posedge basys_clk) begin
-        if (SW15 == 1) begin
-            board_type <= 1; // master - Board A
-        end
-        else if (SW14 == 1)begin
-            board_type <= 2; // slave - Board B
-        end
-        else if (SW13 == 1)begin
-            board_type <= 3;
+        if (trigger_signal && count <= 149999999) count <= count + 1;
+        else if (reset == 1) three_sec_passed <= 0;
+        else three_sec_passed <=1;
+    end
+endmodule
+
+module two_sec_countdown(input basys_clk, input trigger_signal, input reset, output reg two_sec_passed);
+    reg [31:0] count=0;
+    
+    always @ (posedge basys_clk) begin
+        if (trigger_signal && count <= 99999999) count <= count + 1;
+        else if (reset == 1) two_sec_passed <= 0;
+        else two_sec_passed <=1;
+    end
+endmodule
+
+module one_sec_countdown(input basys_clk, input trigger_signal, input reset, output reg one_sec_passed);
+    reg [31:0] count=0;
+    
+    always @ (posedge basys_clk) begin
+        if (trigger_signal && count <= 49999999) count <= count + 1;
+        else if (reset == 1) one_sec_passed <= 0;
+        else one_sec_passed <=1;
+    end
+endmodule
+
+module init_round(input basys_clk, input board_type, input init_round, output reg init_round_done, output reg starting_player);  
+    reg [2:0] lfsr_reg;
+    always @(posedge basys_clk) begin
+        // LFSR feedback polynomial: x^3 + x + 1
+        lfsr_reg <= {lfsr_reg[1:0], lfsr_reg[2] ^ lfsr_reg[0]};
+    end
+    
+    always @(posedge basys_clk) begin
+        // Output the two LSBs of the LFSR register
+        if (board_type == 1 && init_round == 1) begin
+            starting_player <= lfsr_reg[1] + lfsr_reg[0];   // either 0, 1 or 2
+            init_round_done <= 1;
         end
     end
+endmodule
+
+
+module press_detection (input basys_clk, input init_round_done_reg, 
+                input btnL, 
+                input btnR,
+                input left_press_from_B,
+                input right_press_from_B,
+                input left_press_from_C,
+                input right_press_from_C,
+                output reg left_pressed_A,
+                output reg right_pressed_A,
+                output reg left_pressed_B,
+                output reg right_pressed_B,
+                output reg left_pressed_C,
+                output reg right_pressed_C);
+                
+                // cooldown flags (1 - press is valid, 0 - press ignore)                         
+                reg ignoreA=0;
+                reg ignoreB=0;
+                reg ignoreC=0;
+                reg counterA=0;
+                reg counterB=0;
+                reg counterC=0;
+                
+                always @ (posedge basys_clk) begin
+                    // COOLDOWN TIMERS FOR IgnoreA, IgnoreB, IgnoreC
+                    if (init_round_done_reg == 1) begin
+                    
+                    if (ignoreA == 1) begin
+                        if (counterA <= 49999999) counterA <= counterA + 1;
+                        else ignoreA <= 0;
+                    end
+                    if (ignoreB == 1) begin
+                        if (counterB <= 49999999) counterB <= counterB + 1;
+                        else ignoreB <= 0;
+                    end                
+                    if (ignoreC == 1) begin
+                        if (counterC <= 49999999) counterC <= counterC + 1;
+                        else ignoreC <= 0;
+                    end              
+                    if (btnL) begin
+                        if (ignoreA == 0) begin
+                            left_pressed_A <= 1;
+                            ignoreA <= 1;
+                            counterA <= 0;
+                        end
+                    end
+                    if (btnR) begin
+                        if (ignoreA == 0) begin
+                            right_pressed_A <= 1;
+                            ignoreA <= 1;
+                            counterA <= 0;
+                        end
+                    end                                         
+                    if (left_press_from_B) begin
+                        if (ignoreB == 0) begin
+                            left_pressed_B <= 1;
+                            ignoreB <= 1;
+                            counterB <= 0;
+                        end
+                    end
+                    if (right_press_from_B) begin
+                        if (ignoreB == 0) begin
+                            right_pressed_B <= 1;
+                            ignoreB <= 1;
+                            counterB <= 0;
+                        end
+                    end
+                     if (left_press_from_C) begin
+                        if (ignoreC == 0) begin
+                            left_pressed_C <= 1;
+                            ignoreC <= 1;
+                            counterC <= 0;
+                        end
+                    end
+                    if (right_press_from_C) begin
+                        if (ignoreC == 0) begin
+                            right_pressed_C <= 1;
+                            ignoreC <= 1;
+                            counterC <= 0;
+                        end
+                    end
+                        
+                    end
+              end                                                           
 endmodule

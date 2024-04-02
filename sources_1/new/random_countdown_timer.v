@@ -24,7 +24,7 @@ module random_countdown_timer(
     input clk,        // Clock input
     input trigger,
     output [4:0] count,
-    output reg gameover
+    output reg [4:0] countdown_start_value
 );
 
 // Define states for the countdown timer
@@ -43,18 +43,11 @@ wire [3:0] random_value; // 4-bit random value (0-9)
 
     LFSR LFSR_module(clk,random_value);
 
-// Adjust the random number to be between 21 and 30
-reg [4:0] adjusted_random;
 
     always @(*) begin
-        adjusted_random = random_value + 1;
-//        adjusted_random = random_value + 21;
+        countdown_start_value = random_value + 21;
     end
 
-// Initialize gameover flag to zero
-initial begin
-    gameover = 0;
-end
 
 // Countdown timer logic
 always @(posedge clk) begin
@@ -62,11 +55,10 @@ always @(posedge clk) begin
         IDLE: begin
             if (trigger) begin
                 state <= TRIGGERED;
-                gameover <= 0;
             end
         end
         TRIGGERED: begin
-            timer <= adjusted_random; // Random value between 20 and 30
+            timer <= random_value; // Random value between 20 and 30
             state <= COUNTING;
             sec_counter <= 0; // Reset the second counter
         end
@@ -76,7 +68,6 @@ always @(posedge clk) begin
                     timer <= timer - 1;
                 end else begin
                     state <= IDLE;
-                    gameover <= 1; // Update gameover flag
 
                 end
                 sec_counter <= 0; // Reset the second counter
