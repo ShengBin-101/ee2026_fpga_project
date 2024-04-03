@@ -5,7 +5,9 @@
 module bomb_explode(
     input clk_6p25m,
     input [12:0] pixel_index,
-    output reg [15:0] oled_data
+    output reg [15:0] oled_data,
+    
+    input [1:0] start_animation
 );
 
 wire [6:0] x = pixel_index % 96;
@@ -50,7 +52,7 @@ reg [27:0] counter = 0;
 reg [15:0] explosion_radius = 0; // Radius of the explosion
 reg [27:0] explosion_counter = 0; // Counter for explosion animation
 reg explosion_active = 0; // Flag to indicate if the explosion animation is active
-parameter explosion_max_radius = 20; // Maximum radius of the explosion
+parameter explosion_max_radius = 35; // Maximum radius of the explosion
 parameter explosion_rate = 100000; // Speed of explosion expansion
 
 // Fire properties for pulsating effect
@@ -61,113 +63,131 @@ parameter fire_growth_rate = 50000; // Speed of fire growth and shrinkage
 reg [27:0] fire_counter = 0;
 reg fire_growing = 1; // Indicates whether the fire is growing or shrinking
 
-always @(posedge clk_6p25m) begin
-    // Default to white background
-    oled_data <= 16'hFFFF;
-    
-    
-    // decrease length of fuse and make fire follow the fuse
-    fire_x <= 46 + dynamic_fuse_1_length;
-    counter = counter + 1;
-    if (counter >= 150000)
-    begin
-        if (dynamic_fuse_1_length > 0)
-        begin
-            counter <= 0;
-            dynamic_fuse_1_length <= dynamic_fuse_1_length - 1;
-        end
-    end
-        
-        
-    //circle 
-    if ((x - circle_x)**2 + (y - circle_y)**2 <= circle_radius**2) 
-    begin
-        oled_data <= 16'h0000; // Color the pixel black if within the circle
-    end
-    
-    
-    
-    //rectangle 
-    if (x > (rect_x - rect_width/2) && x <= (rect_x + rect_width/2) && y > (rect_y - rect_height/2) && y <= (rect_y + rect_height/2))
-    begin
-        oled_data <= 16'h0000; // Color the pixel black if within the rectangle
-    end
-    
-    
-    // horizontal fuse
-    if (x >= fuse_1_x && x <= fuse_1_x + dynamic_fuse_1_length && y == fuse_1_y) 
-    begin
-        oled_data <= 16'hF800; // Color the pixel red 
-    end
-    
-    
-    // vertical fuse
-    if (y >= fuse_2_y && y <= fuse_2_y + fuse_2_length && x == fuse_2_x) 
-    begin
-        oled_data <= 16'hF800; // Color the pixel red 
-    end
-    
-    
-    // fire 
-    if ((x - fire_x)**2 + (y - fire_y)**2 <= fire_radius**2) 
-    begin
-        oled_data <= 16'hFC00; // orange
-    end   
-    
-    
 
-    // Start explosion once the fuse is fully burnt
-    if (dynamic_fuse_1_length == 0 && !explosion_active) begin
-        explosion_active <= 1;
-        explosion_radius <= 0; // Reset explosion radius for animation
-    end
-    // Animate explosion
-    if (explosion_active) begin
-        explosion_counter <= explosion_counter + 1;
-        if (explosion_counter >= explosion_rate) begin
-            explosion_counter <= 0;
-            if (explosion_radius < explosion_max_radius) begin
-                explosion_radius <= explosion_radius + 1; // Increase radius to expand explosion
-            end else begin
-                explosion_active <= 0; // End the explosion animation
-                explosion_radius <= 0; // Reset the radius for potential future explosions
+always @(posedge clk_6p25m) begin
+    if (start_animation == 1)
+    begin
+    
+        // Default to white background
+        oled_data <= 16'hFFFF;
+        
+        
+        // decrease length of fuse and make fire follow the fuse
+        fire_x <= 46 + dynamic_fuse_1_length;
+        counter = counter + 1;
+        if (counter >= 150000)
+        begin
+            if (dynamic_fuse_1_length > 0)
+            begin
+                counter <= 0;
+                dynamic_fuse_1_length <= dynamic_fuse_1_length - 1;
             end
         end
-    end
-    // Draw explosion
-    if (explosion_active && (x - circle_x)**2 + (y - circle_y)**2 <= explosion_radius**2) begin
-        oled_data <= 16'hFC00; // Orange color for the explosion
-    end
+            
+            
+        //circle 
+        if ((x - circle_x)**2 + (y - circle_y)**2 <= circle_radius**2) 
+        begin
+            oled_data <= 16'h0000; // Color the pixel black if within the circle
+        end
+        
+        
+        
+        //rectangle 
+        if (x > (rect_x - rect_width/2) && x <= (rect_x + rect_width/2) && y > (rect_y - rect_height/2) && y <= (rect_y + rect_height/2))
+        begin
+            oled_data <= 16'h0000; // Color the pixel black if within the rectangle
+        end
+        
+        
+        // horizontal fuse
+        if (x >= fuse_1_x && x <= fuse_1_x + dynamic_fuse_1_length && y == fuse_1_y) 
+        begin
+            oled_data <= 16'hF800; // Color the pixel red 
+        end
+        
+        
+        // vertical fuse
+        if (y >= fuse_2_y && y <= fuse_2_y + fuse_2_length && x == fuse_2_x) 
+        begin
+            oled_data <= 16'hF800; // Color the pixel red 
+        end
+        
+        
+        // fire 
+        if ((x - fire_x)**2 + (y - fire_y)**2 <= fire_radius**2) 
+        begin
+            oled_data <= 16'hFC00; // orange
+        end   
+        
+        
     
-    // Pulsating fire logic
-    fire_counter <= fire_counter + 1;
-    if (fire_growing) begin
-        // If the fire is growing and reaches the maximum size, start shrinking
-        if (pulsating_fire_radius >= fire_radius_max || fire_counter >= fire_growth_rate) begin
-            fire_counter <= 0;
-            pulsating_fire_radius <= pulsating_fire_radius + 1;
-            if (pulsating_fire_radius == fire_radius_max) begin
-                fire_growing <= 0; // Start shrinking
+        // Start explosion once the fuse is fully burnt
+        if (dynamic_fuse_1_length == 0 && !explosion_active) begin
+            explosion_active <= 1;
+            explosion_radius <= 0; // Reset explosion radius for animation
+        end
+        else if (dynamic_fuse_1_length > 0)
+        begin
+            explosion_active <= 0;
+        end
+        // Animate explosion
+        if (explosion_active) begin
+            explosion_counter <= explosion_counter + 1;
+            if (explosion_counter >= explosion_rate) begin
+                explosion_counter <= 0;
+                if (explosion_radius < explosion_max_radius) begin
+                    explosion_radius <= explosion_radius + 1; // Increase radius to expand explosion
+                end else begin
+                    explosion_active <= 0; // End the explosion animation
+                    explosion_radius <= 0; // Reset the radius for potential future explosions
+                end
             end
         end
-    end else begin
-        // If the fire is shrinking and reaches the minimum size, start growing
-        if (pulsating_fire_radius == fire_radius_initial || fire_counter >= fire_growth_rate) begin
-            fire_counter <= 0;
-            if (pulsating_fire_radius > fire_radius_initial) begin
-                pulsating_fire_radius <= pulsating_fire_radius - 1;
-            end else begin
-                fire_growing <= 1; // Start growing
+        // Draw explosion
+        if (explosion_active && (x - circle_x)**2 + (y - circle_y)**2 <= explosion_radius**2) begin
+            oled_data <= 16'hFC00; // Orange color for the explosion
+        end
+        
+        // Pulsating fire logic
+        fire_counter <= fire_counter + 1;
+        if (fire_growing) begin
+            // If the fire is growing and reaches the maximum size, start shrinking
+            if (pulsating_fire_radius >= fire_radius_max || fire_counter >= fire_growth_rate) begin
+                fire_counter <= 0;
+                pulsating_fire_radius <= pulsating_fire_radius + 1;
+                if (pulsating_fire_radius == fire_radius_max) begin
+                    fire_growing <= 0; // Start shrinking
+                end
+            end
+        end else begin
+            // If the fire is shrinking and reaches the minimum size, start growing
+            if (pulsating_fire_radius == fire_radius_initial || fire_counter >= fire_growth_rate) begin
+                fire_counter <= 0;
+                if (pulsating_fire_radius > fire_radius_initial) begin
+                    pulsating_fire_radius <= pulsating_fire_radius - 1;
+                end else begin
+                    fire_growing <= 1; // Start growing
+                end
             end
         end
+        
+        // Fire drawing with pulsating effect
+        if ((x - fire_x)**2 + (y - fire_y)**2 <= pulsating_fire_radius**2) begin
+            oled_data <= 16'hFC00; // Orange color for the fire
+        end
     end
-    
-    // Fire drawing with pulsating effect
-    if ((x - fire_x)**2 + (y - fire_y)**2 <= pulsating_fire_radius**2) begin
-        oled_data <= 16'hFC00; // Orange color for the fire
+    else
+    begin
+        circle_x = 46;
+        rect_x = 46;
+        fuse_1_x = 46;
+        fuse_2_x = 46;
+        fire_x = 46 + fuse_1_length;
+        dynamic_fuse_1_length = 30;
+        explosion_radius = 0;
     end
-    
-    
+       
 end
 
 endmodule    

@@ -5,7 +5,9 @@
 module bomb_at_center(
     input clk_6p25m,
     input [12:0] pixel_index,
-    output reg [15:0] oled_data
+    output reg [15:0] oled_data,
+    
+    input [27:0] bomb_animation_rate
 );
 
 wire [6:0] x = pixel_index % 96;
@@ -64,7 +66,7 @@ reg fire_growing = 1; // Indicates whether the fire is growing or shrinking
 //bomb expanding and contracting
 parameter bomb_radius_min = 14; // Minimum radius of the bomb for contraction
 parameter bomb_radius_max = 18; // Maximum radius of the bomb for expansion
-parameter bomb_animation_rate = 1562500; // Speed of bomb expansion and contraction
+//parameter bomb_animation_rate = 1562500; // Speed of bomb expansion and contraction
 reg [15:0] dynamic_circle_radius = bomb_radius_min; // Dynamic radius of the circle
 reg bomb_expanding = 1; // Flag to track whether the bomb is expanding or contracting
 reg [27:0] bomb_animation_counter = 0; // Counter for bomb animation timing
