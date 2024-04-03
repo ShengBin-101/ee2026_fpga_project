@@ -126,7 +126,7 @@ module Top_Student (
     // state = 100: Bomb Explode, Game Over Screen
     // go back to game state (10)
     reg [1:0] possession_reg;
-    wire [1:0] possession_wire;
+    wire [1:0] possession_start;
     
 //    assign possession_wire = possession_reg;
     // possession: 00 - Master Board possess bomb
@@ -210,7 +210,6 @@ module Top_Student (
     reg init_round;
     reg init_round_done_reg;
     wire init_round_done_wire;
-    assign init_round_done_wire = init_round_done_reg;
     reg start_passing;
     reg round_end;
     reg game_end;
@@ -219,19 +218,31 @@ module Top_Student (
     wire exploded;
     assign exploded = (countdown == 0);
     
-    wire one_sec_over;
-    one_sec_countdown one_sec_countdown_module(basys_clk, init_round, reset_round, one_sec_over);
-    wire two_sec_over;
-    two_sec_countdown two_sec_countdown_module(basys_clk, round_end, reset_round, two_sec_over);
+    reg deducted_lives=0;
     
-    wire three_sec_over;
-    three_sec_countdown three_sec_countdown_module(basys_clk, one_sec_over, reset_round, three_sec_over);
-    init_round init_round_module(basys_clk, init_round, init_round_done_wire, possession_wire);
+    reg one_sec_start=0;
+    wire one_sec_over_wire;
+    one_sec_countdown one_sec_countdown_module(basys_clk, game_state, one_sec_start, reset_round, one_sec_over_wire);
+    reg two_sec_start=0;
+    wire two_sec_over;
+    two_sec_countdown two_sec_countdown_module(basys_clk, round_end, two_sec_start, reset_round, two_sec_over);
+    
+    reg three_sec_start=0;
+    wire three_sec_over_wire;
+    three_sec_countdown three_sec_countdown_module(basys_clk, game_state, one_sec_over_wire, reset_round, three_sec_over_wire);
+    init_round_module init_round_mod(basys_clk, game_state, init_round, init_round_done_wire, possession_start);
     
     initial begin
        password_set = 0;
        game_state = 0;
         reset_game = 1;
+        init_round = 0;
+        reset_round = 1;
+        one_sec_start = 0;
+        three_sec_start = 0;
+        start_bomb = 0;
+        start_round_to_B = 0;
+        start_round_to_C = 0;
     end
    
    wire left_pressed_A;
@@ -263,6 +274,7 @@ module Top_Student (
         // update send packet for master
         if (board_type == 1) begin
             if (game_state == 0) begin
+            led[10] <= 0;
                 write_data_to_B[13:0] <= selected_password;
                 write_data_to_B[15:14] <= 0;
                 write_data_to_C[13:0] <= selected_password;
@@ -277,6 +289,7 @@ module Top_Student (
                 if (password_set == 1 && B_ready && C_ready) begin 
                     // count to 3 seconds then trigger
                     game_state <= 1;
+                    init_round <= 1;
                     write_data_to_B[15] <= 1;
                     write_data_to_C[15] <= 1;
                 end
@@ -284,32 +297,35 @@ module Top_Student (
             // ====================GAME MASTER===============================
             else if (game_state == 1) begin
                 send_signal <= clk_6p25m; 
-                init_round <= 1;
-
-                // COUNTDOWN FOR 3 Seconds
+                
+                
+                
                 if (init_round) begin
                     // decide random starting player
                     if (reset_game == 1) begin
                         reset_game <= 0;
-                       lives_A <= 3;
+                        
+                        lives_A <= 3;
                         lives_B <= 3;
                         lives_C <= 3;
                     end
+                    reset_round <= 0;
                     game_end <= 0;
                     exploded_reg <= 0;
-                    
+                    one_sec_start <= 1;
+                    possession_reg = possession_start;
                     // Update Data Packet
-                    if (possession_wire == 0) begin
+                    if (possession_reg == 0) begin
                         bomb_animation_state_A <= 2'b11;
                         bomb_animation_state_B <= 2'b00;
                         bomb_animation_state_C <= 2'b00;
                     end                    
-                    else if (possession_wire == 1) begin
+                    else if (possession_reg == 1) begin
                         bomb_animation_state_A <= 2'b00;
                         bomb_animation_state_B <= 2'b11;
                         bomb_animation_state_C <= 2'b00;
                     end                    
-                    else if (possession_wire == 2) begin
+                    else if (possession_reg == 2) begin
                         bomb_animation_state_A <= 2'b00;
                         bomb_animation_state_B <= 2'b00;
                         bomb_animation_state_C <= 2'b11;
@@ -320,7 +336,7 @@ module Top_Student (
                     write_data_to_B[6:5] <= bomb_animation_state_B;
                     write_data_to_B[8:7] <= tick_speed;
                     write_data_to_B[10:9] <= lives_B;
-                    write_data_to_B[12:11] <= possession_wire;
+                    write_data_to_B[12:11] <= possession_reg;
                     write_data_to_B[13] <= exploded_reg;
                     write_data_to_B[14] <= game_end;
                     write_data_to_B[15] <= 1;
@@ -330,92 +346,111 @@ module Top_Student (
                     write_data_to_C[6:5] <= bomb_animation_state_C;
                     write_data_to_C[8:7] <= tick_speed;
                     write_data_to_C[10:9] <= lives_C;
-                    write_data_to_C[12:11] <= possession_wire;
+                    write_data_to_C[12:11] <= possession_reg;
                     write_data_to_C[13] <= exploded_reg;
                     write_data_to_C[14] <= game_end;
                     write_data_to_C[15] <= 1;                    
                   
-                    if (one_sec_over == 1) begin
+                    if (one_sec_over_wire == 1) begin
                         // update port to tell slave boards to start 3sec countdown
                         start_round_to_B <= 1;
                         start_round_to_C <= 1;
-                        start_bomb <= 0;
-                        possession_reg <= possession_wire;
+                        three_sec_start <= 1;
+                        
+                        if (three_sec_over_wire == 1) begin 
+                                                
+                                                // Trigger Random Timer for bomb
+                                                start_bomb <= 1;
+                                                init_round <= 0;
+                                                possession_reg = possession_start;
+                        end
                     end
                     
-                    if (three_sec_over == 1) begin 
-                        init_round_done_reg <= 1;
-                        // Trigger Random Timer for bomb
-                        start_bomb <= 1;
-                    end
                 end
-                if (init_round_done_reg) begin
+                else if (start_bomb && init_round_done_wire) begin
+                    
+                    led[11:10] <= possession_reg;
+                    led[9] <= 1;
                     // Start Passing Phase 
                     // This phase updates bomb_animation_state for each board
                     // This phase updates which board possesses bomb based on button presses
                     // Button press flags have timers to include 1s "cooldowns" so users cannot spam buttons
-                    
+                    write_data_to_B[4:0] <= countdown;
+                    write_data_to_C[4:0] <= countdown;
+                    write_data_to_B[12:11] <= possession_reg;
+                    write_data_to_C[12:11] <= possession_reg;  
+                    write_data_to_B[10:9] <= lives_B;
+                    write_data_to_C[10:9] <= lives_C;
                     // Pushbutton event from A (itself)
-                   if (possession_reg == 2'b01) begin
-                        // bomb with A
-                        // detect for left or right pushbutton press
-                        if (left_pressed_A) begin
-                            possession_reg <= 2'b10;
-                            write_data_to_B[6:5] <= 2'b10; // enter from right
-                        end
-                        if (right_pressed_A) begin
-                            possession_reg <= 2'b11;
-                            write_data_to_C[6:5] <= 2'b01; // enter from left
-                        end
-                   end
-                  // Pushbutton event from B
-                  if (possession_reg == 2'b10) begin
-                       // bomb with B
-                       // detect for left or right pushbutton press
-                       if (left_pressed_B) begin
-                           possession_reg <= 2'b11;
-                           write_data_to_C[6:5] <= 2'b10;
-                       end
-                       if (right_pressed_B) begin
-                           possession_reg <= 2'b01;
-                           bomb_animation_state_A <= 2'b01;
-                           write_data_to_B[6:5] <= 2'b00;
-                       end
-                  end
-                  // Pushbutton event from C
-                 if (possession_wire == 2'b11) begin
-                      // bomb with C
-                      // detect for left or right pushbutton press
-                      if (left_pressed_C) begin
-                          possession_reg <= 2'b01;
-                          bomb_animation_state_A <= 2'b10;
-                      end
-                      if (right_pressed_C) begin
-                          possession_reg <= 2'b10;
-                          write_data_to_B[6:5] <= 2'b01;
-                          write_data_to_C[6:5] <= 2'b00;
-                      end
-                 end                   
-                 
+//                   if (possession_reg == 2'b01) begin
+//                        // bomb with A
+//                        // detect for left or right pushbutton press
+//                        if (left_pressed_A) begin
+//                            possession_reg <= 2'b10;
+//                            write_data_to_B[6:5] <= 2'b10; // enter from right
+//                        end
+//                        if (right_pressed_A) begin
+//                            possession_reg <= 2'b11;
+//                            write_data_to_C[6:5] <= 2'b01; // enter from left
+//                        end
+//                   end
+//                  // Pushbutton event from B
+//                  if (possession_reg == 2'b10) begin
+//                       // bomb with B
+//                       // detect for left or right pushbutton press
+//                       if (left_pressed_B) begin
+//                           possession_reg <= 2'b11;
+//                           write_data_to_C[6:5] <= 2'b10;
+//                       end
+//                       if (right_pressed_B) begin
+//                           possession_reg <= 2'b01;
+//                           bomb_animation_state_A <= 2'b01;
+//                           write_data_to_B[6:5] <= 2'b00;
+//                       end
+//                  end
+//                  // Pushbutton event from C
+//                 if (possession_reg == 2'b11) begin
+//                      // bomb with C
+//                      // detect for left or right pushbutton press
+//                      if (left_pressed_C) begin
+//                          possession_reg <= 2'b01;
+//                          bomb_animation_state_A <= 2'b10;
+//                      end
+//                      if (right_pressed_C) begin
+//                          possession_reg <= 2'b10;
+//                          write_data_to_B[6:5] <= 2'b01;
+//                          write_data_to_C[6:5] <= 2'b00;
+//                      end
+//                 end            
+                      
                  
                    
                    if (countdown == 0) begin
                         round_end <= 1;
+                        start_bomb <= 0;
+                        two_sec_start <= 1;
                    end
                 end 
-                if (round_end) begin
-                
+                else if (round_end) begin
+                    led[9] <= 0;
                     // end of round, bomb has exploded
                     // check possession and update lives
-                    if (possession_reg == 2'b01) begin
-                        lives_A = lives_A - 1;
+                    
+                    if (deducted_lives == 0) begin
+                    
+                        if (possession_reg == 2'b01) begin
+                            lives_A = lives_A - 1;
+                        end
+                        else if (possession_reg == 2'b10) begin
+                            lives_B = lives_B - 1;
+                        end                    
+                        else if (possession_reg == 2'b11) begin
+                            lives_C = lives_C - 1;
+                        end                    
+                        
+                        deducted_lives <= 1;
+                        
                     end
-                    else if (possession_reg == 2'b10) begin
-                        lives_B = lives_B - 1;
-                    end                    
-                    else if (possession_reg == 2'b11) begin
-                        lives_C = lives_C - 1;
-                    end                    
                     
                     if (  (lives_A != 0 && lives_B == 0 && lives_C == 0) ||
                           (lives_A == 0 && lives_B != 0 && lives_C == 0) ||
@@ -425,13 +460,19 @@ module Top_Student (
                        game_end = 1;
                           
                     end
+                    else begin
+                        game_end = 0;
+                        
+                    end
+                    
+                    write_data_to_B[4:0] <= countdown;
                     write_data_to_B[12:11] <= possession_reg;
                     write_data_to_B[10:9] <= lives_B;
                     write_data_to_B[13] <= 1;   // update explosion
                     write_data_to_C[12:11] <= possession_reg;
                     write_data_to_C[10:9] <= lives_C;
                     write_data_to_C[13] <= 1;   // update explosion
-                    
+                    write_data_to_C[4:0] <= countdown;
                     // update datapacket
                 
                     if (game_end) begin
@@ -440,19 +481,25 @@ module Top_Student (
                         // wait for btnC to be pressed to restart game
                         if (btnC) begin
                             reset_game <= 1;
-                            init_round <= 0;
+                            init_round <= 1;
                             init_round_done_reg <= 0;
                             round_end <= 0;
                             start_bomb <= 0;
+                            one_sec_start <= 0;
+                            three_sec_start <= 0;
                         end
                     end
                     else if (two_sec_over == 1) begin
                         // restart round after 2 seconds
                         reset_round <= 1;
-                        init_round <= 0;
+                        init_round <= 1;
                         init_round_done_reg <= 0;
                         round_end <= 0;
                         start_bomb <= 0;
+                        one_sec_start <= 0;
+                        three_sec_start <= 0;
+                        deducted_lives <= 0;
+                        two_sec_start <= 0;
                     end
                 
                 end
@@ -474,9 +521,9 @@ module Top_Student (
             else if (game_state == 1) begin
                 // display lives_A on 7-segment
                 led[4:0] <= countdown;
-                led[8:5] = lives_A;
+                led[6:5] = lives_A;
                 oled_data <= (init_round == 1) ? `PURPLE :          // init
-                (lives_A == 0) ? `RED  :             // GAMEOVER
+                (lives_A == 0) ? `RED  :                    // GAMEOVER
                 (possession_reg == 2'b01 && countdown != 0) ? `ORANGE :       // Match INPROGRESS holding bomb
                 (possession_reg != 2'b01 && countdown != 0) ? `BLUE :  // Match INPROGRESS not holding bomb
                 (possession_reg == 2'b01 && countdown == 0) ? `YELLOW: // EXPLOSION
@@ -510,7 +557,9 @@ module Top_Student (
                 read_signal <= clk_6p25m;
                 if (B_start_round_from_m) begin
                     // start 3 seconds countdown animation
-                
+                    init_round <= 0;
+                    led[9] <= 1;
+                    // **
                 end
                 if (btnL == 1)  
                     B_left_press_to_m <= 1 ;
@@ -522,7 +571,7 @@ module Top_Student (
                     B_right_press_to_m <= 0;
                     
                 // check possession and animation_state and play correct animation
-                led[8:5] = lives_B;
+                led[6:5] = rec_data_from_B[10:9];
                 // display lives_B (rec_data_from_B[10:9]) on 7-segment
                 led[4:0] <= rec_data_from_B[4:0];
                 oled_data <= (init_round == 1) ? `PURPLE :          // init
@@ -561,7 +610,8 @@ module Top_Student (
                 read_signal <= clk_6p25m;
                 if (C_start_round_from_m) begin
                     // start 3 seconds countdown animation
-                    
+                    init_round <= 0;
+                    led[9] <= 1;
                 end
                 
                 if (btnL == 1)  
@@ -574,7 +624,7 @@ module Top_Student (
                     C_right_press_to_m <= 0;
 
                 // display lives_C (rec_data_from_C[10:9]) on 7-segment
-                led[8:5] = lives_C;
+                led[6:5] = rec_data_from_C[10:9];
                 led[4:0] <= rec_data_from_C[4:0];
                 oled_data <= (init_round == 1) ? `PURPLE :          // init
                 (rec_data_from_C[10:9] == 0) ? `RED  :             // GAMEOVER
@@ -589,36 +639,63 @@ module Top_Student (
     end
 endmodule
 
-module three_sec_countdown(input basys_clk, input trigger_signal, input reset, output reg three_sec_passed);
-    reg [31:0] count=0;
-    always @ (posedge basys_clk) begin
-        if (trigger_signal && count <= 149999999) count <= count + 1;
-        else if (reset == 1) three_sec_passed <= 0;
-        else three_sec_passed <=1;
-    end
-endmodule
-
-module two_sec_countdown(input basys_clk, input trigger_signal, input reset, output reg two_sec_passed);
+module three_sec_countdown(input basys_clk, input game_state, input three_sec_start, input reset, output reg three_sec_passed);
     reg [31:0] count=0;
     
-    always @ (posedge basys_clk) begin
-        if (trigger_signal && count <= 99999999) count <= count + 1;
-        else if (reset == 1) two_sec_passed <= 0;
-        else two_sec_passed <=1;
+    initial begin
+        count = 0;
+        three_sec_passed = 0;
     end
-endmodule
-
-module one_sec_countdown(input basys_clk, input trigger_signal, input reset, output reg one_sec_passed);
-    reg [31:0] count=0;
     
     always @ (posedge basys_clk) begin
-        if (trigger_signal && count <= 49999999) count <= count + 1;
-        else if (reset == 1) one_sec_passed <= 0;
-        else one_sec_passed <=1;
+        if (game_state && three_sec_start) begin
+            if (count <= 149_999_999) count <= count + 1;
+                else if (reset == 1) three_sec_passed <= 0;
+                else three_sec_passed <=1;
+            end
+        else begin
+            count <= 0;
+        end
+    
     end
 endmodule
 
-module init_round(input basys_clk, input board_type, input init_round, output reg init_round_done, output reg starting_player);  
+module two_sec_countdown(input basys_clk, input game_state, input two_sec_start, input reset, output reg two_sec_passed);
+    reg [31:0] count=0;
+    initial begin 
+            count = 0;
+            two_sec_passed = 0;
+    end
+    always @ (posedge basys_clk) begin
+        
+        if (game_state && two_sec_start)begin
+            if (count <= 99999999) count <= count + 1;
+                else if (reset == 1) two_sec_passed <= 0;
+                else two_sec_passed <=1;
+                   
+        end
+        else begin
+            count <= 0;
+        end
+        
+        end
+endmodule
+
+module one_sec_countdown(input basys_clk, input game_state, input one_sec_start, input reset, output reg one_sec_passed);
+    reg [31:0] count=0;
+    always @ (posedge basys_clk) begin
+        if (game_state && one_sec_start) begin
+            if (count <= 49_999_999) count <= count + 1;
+            else if (reset == 1) one_sec_passed <= 0;
+            else one_sec_passed <=1;
+        end
+        else begin
+            count <= 0;
+        end
+    end
+endmodule
+
+module init_round_module(input basys_clk, input board_type, input init_round, output reg init_round_done, output reg [1:0] starting_player);  
     reg [2:0] lfsr_reg;
     always @(posedge basys_clk) begin
         // LFSR feedback polynomial: x^3 + x + 1
@@ -628,7 +705,11 @@ module init_round(input basys_clk, input board_type, input init_round, output re
     always @(posedge basys_clk) begin
         // Output the two LSBs of the LFSR register
         if (board_type == 1 && init_round == 1) begin
-            starting_player <= lfsr_reg[1] + lfsr_reg[0];   // either 0, 1 or 2
+//            starting_player <= lfsr_reg[1] + lfsr_reg[0];   // either 0,1,2
+//            if (starting_player == 0) begin
+//                starting_player <= 3;
+//            end
+            starting_player <= 2'b10;
             init_round_done <= 1;
         end
     end
