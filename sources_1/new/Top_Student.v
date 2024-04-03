@@ -215,6 +215,7 @@ module Top_Student (
     reg game_end;
     reg reset_game;
     reg reset_round;
+    reg reset_counters;
     wire exploded;
     assign exploded = (countdown == 0);
     
@@ -222,15 +223,15 @@ module Top_Student (
     
     reg one_sec_start=0;
     wire one_sec_over_wire;
-    one_sec_countdown one_sec_countdown_module(basys_clk, game_state, one_sec_start, reset_round, one_sec_over_wire);
+    one_sec_countdown one_sec_countdown_module(basys_clk, game_state, one_sec_start, reset_counters, one_sec_over_wire);
     reg two_sec_start=0;
     wire two_sec_over;
-    two_sec_countdown two_sec_countdown_module(basys_clk, round_end, two_sec_start, reset_round, two_sec_over);
+    two_sec_countdown two_sec_countdown_module(basys_clk, game_state, two_sec_start, reset_counters, two_sec_over);
     
     reg three_sec_start=0;
     wire three_sec_over_wire;
-    three_sec_countdown three_sec_countdown_module(basys_clk, game_state, one_sec_over_wire, reset_round, three_sec_over_wire);
-    init_round_module init_round_mod(basys_clk, game_state, init_round, init_round_done_wire, possession_start);
+    three_sec_countdown three_sec_countdown_module(basys_clk, game_state, one_sec_over_wire, reset_counters, three_sec_over_wire);
+    init_round_module init_round_mod(basys_clk, board_type, init_round, init_round_done_wire, possession_start);
     
     initial begin
        password_set = 0;
@@ -243,6 +244,7 @@ module Top_Student (
         start_bomb = 0;
         start_round_to_B = 0;
         start_round_to_C = 0;
+        two_sec_start = 0;
     end
    
    wire left_pressed_A;
@@ -355,6 +357,7 @@ module Top_Student (
                         // update port to tell slave boards to start 3sec countdown
                         start_round_to_B <= 1;
                         start_round_to_C <= 1;
+                        one_sec_start <= 0;
                         three_sec_start <= 1;
                         
                         if (three_sec_over_wire == 1) begin 
@@ -362,13 +365,15 @@ module Top_Student (
                                                 // Trigger Random Timer for bomb
                                                 start_bomb <= 1;
                                                 init_round <= 0;
-                                                possession_reg = possession_start;
+                                                possession_reg <= possession_start;
+                                                three_sec_start <= 0;
+                                                reset_counters <= 1;
                         end
                     end
                     
                 end
                 else if (start_bomb && init_round_done_wire) begin
-                    
+                    reset_counters <= 0;
                     led[11:10] <= possession_reg;
                     led[9] <= 1;
                     // Start Passing Phase 
@@ -435,17 +440,29 @@ module Top_Student (
                     led[9] <= 0;
                     // end of round, bomb has exploded
                     // check possession and update lives
+                    if (two_sec_over == 1) begin
+                                                // restart round after 2 seconds
+                      reset_round <= 1;
+                      init_round <= 1;
+                      init_round_done_reg <= 0;
+                      round_end <= 0;
+                      start_bomb <= 0;
+                      one_sec_start <= 0;
+                      three_sec_start <= 0;
+                      deducted_lives <= 0;
+                      two_sec_start <= 0;
+                    end
                     
                     if (deducted_lives == 0) begin
                     
                         if (possession_reg == 2'b01) begin
-                            lives_A = lives_A - 1;
+                            lives_A <= lives_A - 1;
                         end
                         else if (possession_reg == 2'b10) begin
-                            lives_B = lives_B - 1;
+                            lives_B <= lives_B - 1;
                         end                    
                         else if (possession_reg == 2'b11) begin
-                            lives_C = lives_C - 1;
+                            lives_C <= lives_C - 1;
                         end                    
                         
                         deducted_lives <= 1;
@@ -458,11 +475,9 @@ module Top_Student (
                        // only one player standing
                        //update game_end
                        game_end = 1;
-                          
                     end
                     else begin
                         game_end = 0;
-                        
                     end
                     
                     write_data_to_B[4:0] <= countdown;
@@ -489,18 +504,8 @@ module Top_Student (
                             three_sec_start <= 0;
                         end
                     end
-                    else if (two_sec_over == 1) begin
-                        // restart round after 2 seconds
-                        reset_round <= 1;
-                        init_round <= 1;
-                        init_round_done_reg <= 0;
-                        round_end <= 0;
-                        start_bomb <= 0;
-                        one_sec_start <= 0;
-                        three_sec_start <= 0;
-                        deducted_lives <= 0;
-                        two_sec_start <= 0;
-                    end
+                    
+                    
                 
                 end
 //                write_data_to_B[4:0] <= countdown;
@@ -667,12 +672,10 @@ module two_sec_countdown(input basys_clk, input game_state, input two_sec_start,
             two_sec_passed = 0;
     end
     always @ (posedge basys_clk) begin
-        
         if (game_state && two_sec_start)begin
-            if (count <= 99999999) count <= count + 1;
+            if (count <= 499_999_999) count <= count + 1;
                 else if (reset == 1) two_sec_passed <= 0;
                 else two_sec_passed <=1;
-                   
         end
         else begin
             count <= 0;
