@@ -2,6 +2,8 @@ module group_project (
 input clk,
 output [7:0] JC,
 
+input [1:0]sw,
+
 //task A2
 input btnC,
 input btnD,
@@ -11,15 +13,13 @@ input btnR
 );
 
     wire clk_6p25m;
-    
     wire unused1;
     wire unused2;
     wire unused3;
     wire [12:0] pixel_index;
+    reg [15:0] oled_data;
     
-    wire [15:0] oled_data;
-    
-    
+    wire [15:0] you_win_wire;
     
     assign JC[2] = 0;
     
@@ -40,13 +40,20 @@ input btnR
     .vccen(JC[6]),
     .pmoden(JC[7]));
     
-
-   //bomb_enter_left enter_left(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
-   //bomb_enter_right enter_right(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
-   // bomb_leave_left leave_left(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
-   // bomb_leave_right leave_right(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
-  //bomb_explode explode(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
- // bomb_at_center center(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
-
-
+    
+       //bomb_enter_left enter_left(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+       //bomb_enter_right enter_right(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+       // bomb_leave_left leave_left(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+       //bomb_leave_right leave_right(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+      //bomb_explode explode(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+     // bomb_at_center center(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+       // game_over game_over(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(oled_data));
+       you_win you_win(.clk_6p25m(clk_6p25m), .pixel_index(pixel_index), .oled_data(you_win_wire));
+    always @(posedge clk)
+    begin
+        if (sw[1])
+        begin
+            oled_data <= you_win_wire;
+        end
+    end
 endmodule

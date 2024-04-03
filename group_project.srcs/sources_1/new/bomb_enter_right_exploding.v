@@ -1,8 +1,47 @@
 `timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 03/28/2024 10:53:32 PM
+// Design Name: 
+// Module Name: bomb_enter_right_exploding
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
 
 
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 03/27/2024 06:04:17 PM
+// Design Name: 
+// Module Name: bomb_enter_left
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
 
-module bomb_leave_right(
+module bomb_enter_right_exploding(
     input clk_6p25m,
     input [12:0] pixel_index,
     output reg [15:0] oled_data
@@ -11,38 +50,46 @@ module bomb_leave_right(
 wire [6:0] x = pixel_index % 96;
 wire [5:0] y = pixel_index / 96;
 
-parameter bomb_speed = 62500;
+parameter bomb_speed = 100000;
 
 // Circle properties
 parameter circle_radius = 16;
-reg [15:0] circle_x = 46; // Starting position of the circle on the x-axis
+reg [15:0] circle_x = 95; // Starting position of the circle on the x-axis
 reg [15:0] circle_y = 32; // Position of the circle on the y-axis (centered)
 reg [27:0] circle_move_counter = 0;
 
 //rectangle properties
 parameter rect_width = 8;
-parameter rect_height = 8;
-reg [15:0] rect_x = 46; // Starting position of the rectangle on the x-axis centre
+parameter rect_height = 5;
+reg [15:0] rect_x = 95; // Starting position of the rectangle on the x-axis centre
 reg [15:0] rect_y = 14; // Starting position of the rectangle on the y-axis centre
 reg [27:0] rectangle_move_counter = 0;
 
-// horizontal fuse properties
+//fuse properties
 parameter fuse_1_length = 30; // Initial length of the fuse
-reg [15:0] fuse_1_x = 46; // Starting x-position of the fuse. left most corner
-reg [15:0] fuse_1_y = 9; // starting y-position of the fuse
+reg [15:0] fuse_1_x = 95; // Starting x-position of the fuse
+reg [15:0] fuse_1_y = 9; // left of the fuse
 reg [27:0] fuse_1_move_counter = 0; // Counter for the fuse animation
 
-// verical fuse properties
 parameter fuse_2_length = 3; // Initial length of the fuse
-reg [15:0] fuse_2_x = 46; // Starting x-position of the fuse. 
+reg [15:0] fuse_2_x = 95; // Starting x-position of the fuse (connected to the circle initially)
 reg [15:0] fuse_2_y = 9; // top of the fuse
 reg [27:0] fuse_2_move_counter = 0; // Counter for the fuse animation
 
 // fire properties
 parameter fire_radius = 4;
-reg [15:0] fire_x = 46 + fuse_1_length; // Starting position of the fire. always at end of fuse 1
+reg [15:0] fire_x = 95 + fuse_1_length; // Starting position of the fire. always at end of fuse 1
 reg [15:0] fire_y = 9; // Position of the circle on the y-axis (centered)
 reg [27:0] fire_move_counter = 0;
+
+// Continuous Explosion properties
+reg [5:0] explosion_radius = 0;
+parameter explosion_max_radius = 16;
+parameter explosion_growth_rate = 250; // Speed of explosion growth
+parameter explosion_pause_duration = 10000; // Pause between explosions
+reg [27:0] explosion_counter = 0;
+reg [15:0] explosion_color = 16'hFC00; // Initial explosion color, e.g., orange
+reg explosion_growing = 1; // Indicates whether the explosion is growing or shrinking
 
 // Fire properties for pulsating effect
 reg [5:0] pulsating_fire_radius = fire_radius_initial; // Current radius of the fire, initialize appropriately
@@ -52,66 +99,28 @@ parameter fire_growth_rate = 50000; // Speed of fire growth and shrinkage
 reg [27:0] fire_counter = 0;
 reg fire_growing = 1; // Indicates whether the fire is growing or shrinking
 
-//bomb expanding and contracting
-parameter bomb_radius_min = 14; // Minimum radius of the bomb for contraction
-parameter bomb_radius_max = 18; // Maximum radius of the bomb for expansion
-parameter bomb_animation_rate = 1562500; // Speed of bomb expansion and contraction
-reg [15:0] dynamic_circle_radius = bomb_radius_min; // Dynamic radius of the circle
-reg bomb_expanding = 1; // Flag to track whether the bomb is expanding or contracting
-reg [27:0] bomb_animation_counter = 0; // Counter for bomb animation timing
-
 
 
 always @(posedge clk_6p25m) begin
     // Default to white background
     oled_data <= 16'hFFFF;
     
-    
-    //circle movement
+
     circle_move_counter <= circle_move_counter + 1;
     if (circle_move_counter > bomb_speed)
     begin
         circle_move_counter <= 0;
-        if (circle_x < 95) //control where circle stops
+        if (circle_x > 46) //control where circle stops
         begin
-            circle_x <= circle_x + 1; // Move the circle right by 1 pixel each clock cycle
+            circle_x <= circle_x - 1; // Move the circle right by 1 pixel each clock cycle
         end
     end
     
-    //circle 
-    bomb_animation_counter <= bomb_animation_counter + 1;
-    if (bomb_animation_counter >= bomb_animation_rate) 
+    // Check if current pixel is within the circle's area
+    if ((x - circle_x)**2 + (y - circle_y)**2 <= circle_radius**2) 
     begin
-        bomb_animation_counter <= 0; // Reset the counter for the next step
-        if (bomb_expanding) 
-        begin
-            if (dynamic_circle_radius < bomb_radius_max) 
-            begin
-                dynamic_circle_radius <= dynamic_circle_radius + 1;
-            end 
-            else 
-            begin
-                bomb_expanding <= 0; // Start contracting
-            end
-        end 
-        else //contracting bomb
-        begin
-            if (dynamic_circle_radius > bomb_radius_min) 
-            begin
-                dynamic_circle_radius <= dynamic_circle_radius - 1;
-            end 
-            else 
-            begin
-                bomb_expanding <= 1; // Start expanding
-            end
-        end
+        oled_data <= 16'h0000; // Color the pixel black if within the circle
     end
-
-    // Drawing the bomb with dynamic radius
-    if ((x - circle_x)**2 + (y - circle_y)**2 <= dynamic_circle_radius**2) begin
-        oled_data <= 16'h0000; // Color the pixel black if within the dynamic circle radius
-    end
-    
     
     
     //rectangle movement
@@ -119,11 +128,12 @@ always @(posedge clk_6p25m) begin
     if (rectangle_move_counter >= bomb_speed) begin
         rectangle_move_counter <= 0; // Reset counter
         // Move rectangle to the right.
-        if (rect_x < 95) //control where rectangle stops . increase to stop more right. decrease to stop more left
+        if (rect_x > 46) //control where rectangle stops . increase to stop more right. decrease to stop more left
         begin
-            rect_x <= rect_x + 1;
+            rect_x <= rect_x - 1;
         end
     end
+    
     // Check if current pixel is within the rectangle's area
     if (x > (rect_x - rect_width/2) && x <= (rect_x + rect_width/2) && y > (rect_y - rect_height/2) && y <= (rect_y + rect_height/2))
     begin
@@ -131,15 +141,14 @@ always @(posedge clk_6p25m) begin
     end
     
     
-    
     // horizontal fuse movement
     fuse_1_move_counter <= fuse_1_move_counter + 1;
-    if (fuse_1_move_counter >= bomb_speed) //decrease to increase speed
+    if (fuse_1_move_counter >= bomb_speed) 
     begin
         fuse_1_move_counter <= 0; // Reset counter
-        if (fuse_1_x < 95) //end point of the fuse
+        if (fuse_1_x > 46) //end point of the fuse
         begin 
-            fuse_1_x <= fuse_1_x + 1; // move the fuse to right
+            fuse_1_x <= fuse_1_x - 1; // move the fuse to right
         end
     end
     if (x >= fuse_1_x && x <= fuse_1_x + fuse_1_length && y == fuse_1_y) 
@@ -150,12 +159,12 @@ always @(posedge clk_6p25m) begin
     
     // vertical fuse movement
     fuse_2_move_counter <= fuse_2_move_counter + 1;
-    if (fuse_2_move_counter >= bomb_speed) //decrease to increase speed
+    if (fuse_2_move_counter >= bomb_speed) 
     begin
         fuse_2_move_counter <= 0; // Reset counter
-        if (fuse_2_x < 95) //end point of the fuse
+        if (fuse_2_x > 46) //end point of the fuse
         begin 
-            fuse_2_x <= fuse_2_x + 1; // move fuse right
+            fuse_2_x <= fuse_2_x - 1; // move fuse right
         end
     end
     if (y >= fuse_2_y && y <= fuse_2_y + fuse_2_length && x == fuse_2_x) 
@@ -166,20 +175,50 @@ always @(posedge clk_6p25m) begin
     
     // fire movement
     fire_move_counter <= fire_move_counter + 1;
-    if (fire_move_counter > bomb_speed) //decrease to increase speed
+    if (fire_move_counter > bomb_speed)
     begin
         fire_move_counter <= 0;
-        if (fire_x < 95 + fuse_1_length) //control where circle stops
+        if (fire_x > 46 + fuse_1_length) //control where circle stops
         begin
-            fire_x <= fire_x + 1; // Move the circle right by 1 pixel each clock cycle
+            fire_x <= fire_x - 1; // Move the circle right by 1 pixel each clock cycle
         end
     end
+    
+    //fire logic
     if ((x - fire_x)**2 + (y - fire_y)**2 <= fire_radius**2) 
     begin
         oled_data <= 16'hFC00; // orange
-    end   
+    end 
     
-    // Pulsating fire logic
+    
+    // Continuous explosion logic
+    explosion_counter <= explosion_counter + 1;
+    if (explosion_growing) begin
+        // If the explosion is growing and reaches the maximum size, start shrinking
+        if (explosion_radius >= explosion_max_radius || explosion_counter >= explosion_growth_rate) begin
+            explosion_counter <= 0;
+            explosion_radius <= explosion_radius + 1;
+            explosion_color <= (explosion_color == 16'hFC00) ? 16'hFEA0 : 16'hFC00; // Flicker effect
+            if (explosion_radius == explosion_max_radius) begin
+                explosion_growing <= 0; // Start shrinking
+            end
+        end
+    end else begin
+        // If the explosion is shrinking and disappears, pause and then grow again
+        if (explosion_radius == 0 && explosion_counter >= explosion_pause_duration) begin
+            explosion_counter <= 0;
+            explosion_growing <= 1; // Start growing
+        end else if (explosion_radius > 0) begin
+            explosion_radius <= explosion_radius - 1;
+        end
+    end
+
+    // Draw the explosion
+    if ((x - circle_x)**2 + (y - circle_y)**2 <= explosion_radius**2) begin
+        oled_data <= explosion_color;
+    end
+    
+        // Pulsating fire logic
     fire_counter <= fire_counter + 1;
     if (fire_growing) begin
         // If the fire is growing and reaches the maximum size, start shrinking
@@ -201,12 +240,12 @@ always @(posedge clk_6p25m) begin
             end
         end
     end
-    
+
     // Fire drawing with pulsating effect
     if ((x - fire_x)**2 + (y - fire_y)**2 <= pulsating_fire_radius**2) begin
         oled_data <= 16'hFC00; // Orange color for the fire
     end
-    
+      
 end
 
 endmodule    

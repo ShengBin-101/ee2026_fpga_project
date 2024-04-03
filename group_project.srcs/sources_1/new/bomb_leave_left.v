@@ -11,7 +11,7 @@ module bomb_leave_left(
 wire [6:0] x = pixel_index % 96;
 wire [5:0] y = pixel_index / 96;
 
-parameter bomb_speed = 100000;
+parameter bomb_speed = 62500;
 
 // Circle properties
 parameter circle_radius = 16;
@@ -55,7 +55,7 @@ reg fire_growing = 1; // Indicates whether the fire is growing or shrinking
 //bomb expanding and contracting
 parameter bomb_radius_min = 14; // Minimum radius of the bomb for contraction
 parameter bomb_radius_max = 18; // Maximum radius of the bomb for expansion
-parameter bomb_animation_rate = 1562500; // Speed of bomb expansion and contraction
+reg [27:0] bomb_animation_rate = 468750; // Speed of bomb expansion and contraction
 reg [15:0] dynamic_circle_radius = bomb_radius_min; // Dynamic radius of the circle
 reg bomb_expanding = 1; // Flag to track whether the bomb is expanding or contracting
 reg [27:0] bomb_animation_counter = 0; // Counter for bomb animation timing

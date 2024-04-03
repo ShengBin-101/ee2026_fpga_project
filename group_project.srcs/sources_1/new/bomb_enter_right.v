@@ -9,7 +9,7 @@ module bomb_enter_right(
 wire [6:0] x = pixel_index % 96;
 wire [5:0] y = pixel_index / 96;
 
-parameter bomb_speed = 100000;
+parameter bomb_speed = 62500;
 
 // Circle properties
 parameter circle_radius = 16;
